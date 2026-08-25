@@ -39,3 +39,11 @@ apps/web/dist/
 worktrees/
 .agents/worktrees/
 .typert-*/
+
+# Desktop packaging build artifacts (source is committed; binaries go to GitHub Releases)
+apps/desktop/staging/
+apps/desktop/release/*.exe
+apps/desktop/release/*.blockmap
+apps/desktop/release/win-unpacked/
+apps/desktop/release/builder-debug.yml
+dist/npm/

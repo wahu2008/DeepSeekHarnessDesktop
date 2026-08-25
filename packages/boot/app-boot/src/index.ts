@@ -264,6 +264,64 @@ export async function watchUserPatches(
   }
 }
 
+/** Options for the profile bundle-manifest watcher. */
+export interface ProfileBundleWatchOptions {
+  /** Diagnostic prefix used in errors. */
+  binName: string
+  /** Absolute path of the profile's `package.json` (its `dsh.profile.bundles` manifest). */
+  filename: string
+  /**
+   * Compose the FULL patch list for a fresh generation — the same composition
+   * the app booted with, except the caller re-resolves the bundle layers from
+   * the CURRENT manifest, so a newly `dsh plugin add`ed bundle's patch layer
+   * joins the tree below the user layers.
+   */
+  compose: () => PatchOptions[]
+}
+
+/**
+ * Watch the profile bundle manifest (`dsh.profile.bundles` in the profile's
+ * `package.json`) through Cordis HMR and transactionally reapply the boot
+ * include with freshly resolved bundle layers.
+ *
+ * Unlike {@link watchUserPatches}, the watched file is NOT a patch list — it
+ * is the profile manifest — so the refresh callback never parses it as
+ * patches; the caller's `compose` owns the entire re-read (fresh bundle
+ * layers + current user layers + overlays). A `dsh plugin add` therefore
+ * activates the new bundle's `cordis.patch.yml` layer in the live tree
+ * without a host restart.
+ * @param ctx - settled app context containing the root Include and an active HMR service.
+ * @param options - diagnostic, manifest path, and full-composition callback.
+ * @returns an asynchronous disposer after the exact-path watcher is ready.
+ * @throws when HMR or the root Include is absent, watcher setup fails, or initial path resolution fails.
+ */
+export async function watchProfileBundles(
+  ctx: Context,
+  options: ProfileBundleWatchOptions,
+): Promise<() => Promise<void>> {
+  const { binName, filename, compose } = options
+  const hmr = ctx.get('hmr')
+  if (hmr === undefined) throw new Error(`${binName}: profile bundle watching requires the Cordis HMR service`)
+  const entry = bootstrapIncludes.get(ctx)
+  if (entry === undefined) throw new Error(`${binName}: profile bundle watching requires the root Include entry`)
+  const register = hmr.registerConfig(filename, async () => {
+    const { patches: _previousPatches, ...includeConfig } = entry.options.config as Include.Config
+    const patches = compose()
+    await entry.update({
+      config: {
+        ...includeConfig,
+        patches,
+      },
+    })
+  })
+  try {
+    return await register
+  } catch (error) {
+    if ((error as { code?: string } | null)?.code === 'INACTIVE_EFFECT') return async () => {}
+    throw error
+  }
+}
+
 /**
  * Load an optional patch-list file: a top-level YAML array of loader patch
  * entries (`@deepseek-ai/cordis-plugin-include`'s `PatchOptions`): id-targeted config

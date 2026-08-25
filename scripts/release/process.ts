@@ -7,6 +7,22 @@ import { spawnSync } from 'node:child_process'
 import { realpathSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
+/**
+ * Resolve a command name for this platform. On Windows, `pnpm` and `npm`
+ * ship as `.cmd` shims that `spawnSync` refuses to execute directly
+ * (CVE-2024-27980 hardening: .cmd spawns EINVAL), so the shim runs through
+ * `cmd.exe /d /s /c` — the same shape dshmarket's `winCmdShim` uses. Other
+ * commands (git, tar) pass through unchanged.
+ * @param command - executable name.
+ * @returns `{ file, args }` to spawn.
+ */
+function resolveCommand(command: string): { file: string; args: string[] } {
+  if (process.platform !== 'win32') return { file: command, args: [] }
+  if (command === 'pnpm') return { file: 'cmd.exe', args: ['/d', '/s', '/c', 'pnpm.cmd'] }
+  if (command === 'npm') return { file: 'cmd.exe', args: ['/d', '/s', '/c', 'npm.cmd'] }
+  return { file: command, args: [] }
+}
+
 /** Where and with what environment a release step runs a command. */
 export interface RunOptions {
   /** Working directory; defaults to the current one. */
@@ -33,7 +49,12 @@ export interface CommandResult {
  * @returns The exit status and captured streams.
  */
 export function attempt(command: string, args: readonly string[], options: RunOptions = {}): CommandResult {
-  const result = spawnSync(command, [...args], { cwd: options.cwd, env: options.env, encoding: 'utf8' })
+  const resolved = resolveCommand(command)
+  const result = spawnSync(resolved.file, [...resolved.args, ...args], {
+    cwd: options.cwd,
+    env: options.env,
+    encoding: 'utf8',
+  })
   if (result.error !== undefined) throw result.error
   return { status: result.status, stdout: result.stdout, stderr: result.stderr }
 }
@@ -58,7 +79,8 @@ export function attempt(command: string, args: readonly string[], options: RunOp
  * @returns The exit status and captured streams.
  */
 export function attemptEchoed(command: string, args: readonly string[], options: RunOptions = {}): CommandResult {
-  const result = spawnSync(command, [...args], {
+  const resolved = resolveCommand(command)
+  const result = spawnSync(resolved.file, [...resolved.args, ...args], {
     cwd: options.cwd,
     env: options.env,
     encoding: 'utf8',
@@ -95,7 +117,12 @@ export function capture(command: string, args: readonly string[], options: RunOp
  * @param options - working directory and environment.
  */
 export function run(command: string, args: readonly string[], options: RunOptions = {}): void {
-  const result = spawnSync(command, [...args], { cwd: options.cwd, env: options.env, stdio: 'inherit' })
+  const resolved = resolveCommand(command)
+  const result = spawnSync(resolved.file, [...resolved.args, ...args], {
+    cwd: options.cwd,
+    env: options.env,
+    stdio: 'inherit',
+  })
   if (result.error !== undefined) throw result.error
   if (result.status !== 0) throw new Error(`${command} ${args.join(' ')} exited with ${String(result.status)}`)
 }

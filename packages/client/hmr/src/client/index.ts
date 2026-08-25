@@ -90,6 +90,71 @@ function removeOwnedStyles(id: string): void {
   }
 }
 
+/** The loader/modules surface `reconcileGraph` needs (injectable for tests). */
+export interface ReconcileDeps {
+  loader: Loader
+  modLoader: { prefetch(id: string): Promise<void> }
+  warn(message: string, ...details: unknown[]): void
+  error(message: string, ...details: unknown[]): void
+}
+
+/**
+ * Reconcile the browser's entry set against a freshly received graph:
+ * entries the host added since our last view are prefetched and created;
+ * entries the host removed are disposed. Boot already created every row in
+ * the connect-time graph, so the first `graph` frame only establishes the
+ * baseline (idempotent — create/remove are no-ops for known rows).
+ * @param deps - loader, module loader, and log sinks.
+ * @param graph - the composed graph from a `graph` frame.
+ * @param knownIds - in-out baseline of rows the browser has accepted.
+ */
+export async function reconcileGraph(
+  deps: ReconcileDeps,
+  graph: { entries: Array<{ id: string; url?: string; rev?: string }> },
+  knownIds: Set<string>,
+): Promise<void> {
+  const { loader, modLoader, warn, error } = deps
+  const next = new Set(graph.entries.map(row => row.id))
+  // Removed first: a later removal of a row we are about to create must not
+  // race a re-add of the same id (dispose order is one-directional).
+  for (const id of [...knownIds]) {
+    if (next.has(id)) continue
+    const entry = findEntry(loader, id)
+    if (entry !== undefined) {
+      try {
+        await loader.remove(entry.id)
+      } catch (removalError) {
+        warn(`client-hmr: removing graph row "${id}" failed`)
+        warn(removalError instanceof Error ? removalError.message : String(removalError))
+      }
+    }
+    knownIds.delete(id)
+  }
+  for (const row of graph.entries) {
+    if (knownIds.has(row.id)) continue
+    const entry = findEntry(loader, row.id)
+    if (entry !== undefined) {
+      // Boot created it (or a prior frame already did): just track it.
+      knownIds.add(row.id)
+      continue
+    }
+    try {
+      // Prefetch first so the factory is registered before the Loader
+      // materializes it during entry creation (same ordering as boot).
+      await modLoader.prefetch(row.id)
+      const created = await loader.create({ name: row.id })
+      const createdEntry = loader.resolve(created)
+      if (createdEntry?.fiber === undefined) {
+        warn(`client-hmr: graph row "${row.id}" created without an active fiber`)
+      }
+      knownIds.add(row.id)
+    } catch (createError) {
+      error(`client-hmr: adding graph row "${row.id}" failed`)
+      error(createError instanceof Error ? createError.message : String(createError))
+    }
+  }
+}
+
 /**
  * Mount the HMR driver: subscribe to the system SSE channel and hot-swap
  * rebuilt entries.
@@ -100,6 +165,11 @@ export function apply(ctx: Context): void {
   // client module loader package, `loader` from the vendored Loader).
   const modLoader = ctx.modules
   const loader: Loader = ctx.loader
+
+  // Live graph reconciliation baseline: every row the browser has already
+  // accepted (boot rows plus rows added through prior `graph` frames). Used
+  // to diff incoming graphs for add/remove without re-creating boot rows.
+  const knownIds = new Set<string>()
 
   async function reload(id: string): Promise<void> {
     const entry = findEntry(loader, id)
@@ -151,10 +221,23 @@ export function apply(ctx: Context): void {
         })
         break
       case 'graph':
-        // Connect-time snapshot, unused. The loader's cached graph rev
-        // goes stale after rebuilds — harmless, since prefetch hits the
-        // network anyway (host serves bundles no-cache); graph rev refresh
-        // lands with the reconnect-handshake mechanism.
+        // Live graph reconciliation: rows hot-added by the host (`dsh plugin
+        // add` activating a new bundle layer) arrive here; rows removed by the
+        // host are disposed. The connect-time snapshot establishes the
+        // baseline against boot-created entries.
+        queue = queue.then(() => reconcileGraph(
+          {
+            loader,
+            modLoader,
+            warn: (message, ...details) => ctx.logger.warn(message, ...details),
+            error: (message, ...details) => ctx.logger.error(message, ...details),
+          },
+          frame.graph,
+          knownIds,
+        )).catch((error: unknown) => {
+          ctx.logger.error('client-hmr: graph reconciliation failed')
+          ctx.logger.error(error)
+        })
         break
       default:
         // Merge-extensible frame union: unknown frame types from newer hosts

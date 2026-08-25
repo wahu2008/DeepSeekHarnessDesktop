@@ -1,0 +1,28 @@
+appId: com.deepseek.dsh-desktop
+productName: DeepSeek Harness Desktop
+npmRebuild: false
+electronDist: staging/electron-dist
+directories:
+  output: release
+  buildResources: build
+files:
+  - lib/**/*
+  - package.json
+extraResources:
+  - from: staging
+    to: .
+    filter:
+      - "dsh/**/*"
+      - "node/**/*"
+asar: false
+win:
+  target:
+    - nsis
+  icon: build/icon.ico
+  # Edit resources (embed win.icon into the exe) without code-signing.
+  signExecutable: false
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico

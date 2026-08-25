@@ -26,6 +26,7 @@ import {
   loadOverlayPatches,
   loadProfile,
   PROFILE_PATCH_FILENAME,
+  watchProfileBundles,
   watchUserPatches,
   type Profile,
 } from '@deepseek-ai/dsh-app-boot'
@@ -243,6 +244,23 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     ...loadOptionalPatches(NAME, homePatchPath()) ?? [],
     ...composed.overlays,
   ])
+  // Fresh-generation variant for the bundle manifest watcher: re-resolve the
+  // bundle layers from the CURRENT `dsh.profile.bundles`, so a `dsh plugin
+  // add` that appended a bundle activates its `cordis.patch.yml` layer in the
+  // live tree without a host restart. The user layers are re-read here too,
+  // mirroring composeLive; the launcher-level overlays stay the boot snapshot.
+  // loadProfile is safe to call mid-run: it reads the manifest and each listed
+  // bundle's patch file without mutating the profile (initProfile only fires
+  // for a missing profile directory, which cannot regress while we run).
+  const composeLiveWithFreshBundles = (): PatchOptions[] => {
+    const fresh = loadProfile(NAME, options.profile, INSTALL_ANCHOR, undefined, { userLayer: false })
+    return structuredClone([
+      ...fresh.layers.flatMap(layer => layer.patches),
+      ...loadOptionalPatches(NAME, composed.profile.patchPath) ?? [],
+      ...loadOptionalPatches(NAME, homePatchPath()) ?? [],
+      ...composed.overlays,
+    ])
+  }
   // Cloned for the same insert-aliasing reason as composeLive: the boot
   // application must not mutate the objects later reloads recompose from.
   const ctx = await boot(NAME, rootConfig, structuredClone(allPatches(composed)), (hostCtx) => {
@@ -291,6 +309,19 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
         binName: NAME,
         filename: homePatchPath(),
         compose: composeLive,
+      })
+      // Live bundle activation: watch the profile's `dsh.profile.bundles`
+      // manifest. A `dsh plugin add` (or the market's pnpm-driven install)
+      // appends to this list after the package lands in the profile's
+      // node_modules; the fresh composition below resolves the new bundle's
+      // patch layer and hot-inserts it into the running tree, so the new
+      // plugin activates without restarting the host. Removal and reorder are
+      // replayed the same way (the reconcile step of `dsh plugin` owns the
+      // manifest, we only observe it).
+      await watchProfileBundles(ctx, {
+        binName: NAME,
+        filename: join(composed.profile.dir, 'package.json'),
+        compose: composeLiveWithFreshBundles,
       })
     } catch (error) {
       suppressShutdownError(ctx, signalShutdown.signal, error)

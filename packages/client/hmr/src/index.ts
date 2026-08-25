@@ -58,6 +58,9 @@ export function apply(ctx: Context, config: Config): void {
   // schemastery's .default() guarantees the field is set after validation.
   const pollIntervalMs = config.pollIntervalMs as number
 
+  // --- /plugins/events SSE channel (shared by graph broadcast and rebuilt) --
+  const connections = new Set<ServerResponse>()
+
   // --- bundle watch: one HMR-owned stat poll ------------------------------
   const watched = new Map<string, WatchedBundle>()
 
@@ -135,7 +138,16 @@ export function apply(ctx: Context, config: Config): void {
     // rows arriving later (boot-window activations, including this plugin's
     // own row — no self-exemption, a modules/hmr rebuild rides the same chain).
     syncWatches()
-    const unsubscribe = ctx.clientModules.onGraphChanged(syncWatches)
+    const unsubscribe = ctx.clientModules.onGraphChanged(() => {
+      syncWatches()
+      // Broadcast the composed graph so the browser half can reconcile new and
+      // removed rows live (a `dsh plugin add` hot-inserts a bundle layer on the
+      // host; the browser must learn about the new client entry without a
+      // page reload). The graph frame is the same wire shape as the
+      // connect-time snapshot, so the browser diff is uniform.
+      const line = sseData({ type: 'graph', graph: ctx.clientModules.graph() })
+      for (const res of connections) res.write(line)
+    })
     const timer = setInterval(pollWatches, pollIntervalMs)
     timer.unref()
     return () => {
@@ -146,8 +158,6 @@ export function apply(ctx: Context, config: Config): void {
   }, 'client-hmr: bundle watches')
 
   // --- /plugins/events SSE channel ----------------------------------------
-  const connections = new Set<ServerResponse>()
-
   const connect = (res: ServerResponse): void => {
     res.writeHead(200, {
       'content-type': 'text/event-stream',
