@@ -88,3 +88,32 @@ npx electron-builder --win nsis
 
 壳在打包环境下用 `process.resourcesPath` 定位 `dsh/` 与 `node/`，spawn
 `resources/node/node.exe resources/dsh/lib/bin.js --profile web --port 0`。
+
+## 升级后旧插件不兼容的排查（常见启动失败）
+
+把桌面壳升级到新版本（例如换到 alpha.2 基线）后，**宿主可能在启动时因旧第三方插件而退出**——这不是新安装包的问题，而是用户数据目录里残留的旧插件与新版本上游 API 不兼容。
+
+典型症状：应用窗口弹「Failed to start the host」或一启动就退出，`dsh-desktop.log` 里出现类似下面的错误：
+
+```
+Error: failed to import loader entry dsh-market (dshmarket):
+  The requested module '@deepseek-ai/dsh-settings' does not provide an export named 'installSettingsSection'
+    at ...\dsh-home\profiles\web\node_modules\dshmarket\lib\settings.js:35
+```
+
+含义：某个旧插件（例子里是插件市场 `dshmarket`）`import` 了一个在新版本里已被删除的导出（`installSettingsSection`），导致宿主解析失败、退出。
+
+### 定位
+
+1. 日志在 `%APPDATA%\@deepseek-ai\dsh-desktop\dsh-desktop.log`，看最后一次启动段的 `HOST FAILED` / `stderr` 栈。
+2. 报错里的 `...\dsh-home\profiles\<profile>\node_modules\<插件>` 就是造成不兼容的旧插件。
+
+### 解决办法
+
+按优先级：
+
+- **更新该插件到兼容新版的最新版**。很多第三方插件老版本只兼容旧基线，作者会为兼容新版本发布修复版。例：`dshmarket` v1.29.2 不兼容 alpha.2，官方发布的 v1.38.1+ 已修复（不再 stop dsh 0.1.2-alpha 启动）。把 `%APPDATA%\@deepseek-ai\dsh-desktop\dsh-home\profiles\web\package.json` 里该插件依赖版本改到兼容区间，然后在 profile 目录执行 `pnpm install --no-frozen-lockfile`。
+- 若该插件不再需要，**卸载/移除它**：删掉它在 profile 里 `dependencies` 的声明、`dsh.profile.bundles` 里的条目、以及 `...\profiles\<profile>\node_modules\<插件>` 与 `cordis.patch.yml` 里的插入项。
+- 想完全回到干净状态，可**重置该 profile 的插件层**：删除 `...\dsh-home\profiles\<profile>`（会丢该 profile 里另装的插件），下次启动会按新版本模板重建。会话、设置、存储、附件等数据位于 `dsh-home` 其它子目录（`sessions`、`storages`、`llm-deepseek`、`attachments` 等），不受影响。
+
+> 提示：如果一次更新后仍报错，说明还有其它旧插件不兼容——按日志逐一定位、逐次更新或移除即可。第三方插件对上游 API 的适配由其作者负责，新版宿主无需为旧插件改动。

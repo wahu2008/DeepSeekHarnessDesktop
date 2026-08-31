@@ -101,6 +101,7 @@ Select-String -Path "$hmr\client.js" -Pattern "reconcileGraph"
 - **安装包里 main.js 旧** → 漏跑步骤 4。补编译后重跑步骤 5。
 - **flatten 一堆 UNRESOLVED** → 正常（其他平台/可选包），忽略。
 - **SmartScreen 提示未知发布者** → 安装包未签名（`signAndEditExecutable: false` 为仓库默认），点"更多信息 → 仍要运行"。
+- **升级后宿主启动失败（`installSettingsSection` 等旧导出缺失）** → 用户数据 `%APPDATA%\@deepseek-ai\dsh-desktop\dsh-home\profiles\<profile>\node_modules` 里残留的旧第三方插件与新版本 API 不兼容（例：`dshmarket` 旧版导入已被 alpha.2 删除的 `@deepseek-ai/dsh-settings` 导出）。不是安装包 bug：安装包本身已验证正常。处理：更新该插件到兼容新版本（`dshmarket` v1.38.1+ 已修复），或移除插件 / 重置该 profile 插件层。详见 `apps/desktop/README.md` 的「升级后旧插件不兼容的排查」。
 
 ## 完成标准
 
