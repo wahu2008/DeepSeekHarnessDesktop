@@ -1,6 +1,6 @@
-# DeepSeek Harness Desktop — 社区定制版（0.1.1-rc.2）
+# DeepSeek Harness Desktop — 社区定制版（0.1.2-alpha.2）
 
-> 基于官方 [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) `dsh 0.1.1-rc.2`（Windows x64）
+> 基于官方 [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) `dsh 0.1.2-alpha.2`（Windows x64）
 > 构建的桌面定制版。在此版本上**修复了多个已知问题、优化了窗口体验，并补齐了插件生态的免重启/免刷新能力**。
 
 本仓库既包含**可再次构建的源码**，也发布**可直接运行的安装包（exe）**。下面先说明为什么两者并存、为什么要把 exe 单独以 Release 形式发布，再列出这个定制版具体做了什么。
@@ -75,7 +75,7 @@
 
 | 形态 | 文件 | 说明 |
 |---|---|---|
-| **安装版** | `DeepSeek Harness Desktop Setup 0.1.1-rc.2.exe` | NSIS 安装器，一键安装，创建桌面/开始菜单快捷方式 |
+| **安装版** | `DeepSeek Harness Desktop Setup 0.1.2-alpha.2.exe` | NSIS 安装器，一键安装，创建桌面/开始菜单快捷方式 |
 | **便携版** | `win-unpacked/` 目录 | 免安装，解压即用，直接运行 `DeepSeek Harness Desktop.exe` |
 
 > 两个版本**功能完全一致**，只是交付方式不同。安装版会注册系统图标与快捷方式；

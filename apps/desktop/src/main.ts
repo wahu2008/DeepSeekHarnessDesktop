@@ -414,7 +414,7 @@ function killOrphanHosts(): void {
  * are resolved here and handed to the renderer over IPC.
  */
 const APP_REPO_URL = 'https://github.com/wahu2008/DeepSeekHarnessDesktop'
-const APP_BASIS = 'deepseek-harness dsh 0.1.1-rc.2'
+const APP_BASIS = 'deepseek-harness dsh 0.1.2-alpha.2'
 
 function aboutInfo(): Record<string, string> {
   return {

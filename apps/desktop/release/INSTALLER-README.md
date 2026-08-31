@@ -1,6 +1,6 @@
-# DeepSeek Harness Desktop — 安装版 (0.1.1-rc.2)
+# DeepSeek Harness Desktop — 安装版 (0.1.2-alpha.2)
 
-**文件**：`DeepSeek Harness Desktop Setup 0.1.1-rc.2.exe`
+**文件**：`DeepSeek Harness Desktop Setup 0.1.2-alpha.2.exe`
 **大小**：约 162 MB　**平台**：Windows x64　**安装类型**：NSIS 安装器
 
 > 这是一个**直接可用的成品安装包**：无需安装 Node.js、无需从源码构建，双击即可安装使用。
@@ -9,7 +9,7 @@
 
 ## 安装
 
-1. 双击运行 `DeepSeek Harness Desktop Setup 0.1.1-rc.2.exe`
+1. 双击运行 `DeepSeek Harness Desktop Setup 0.1.2-alpha.2.exe`
 2. 选择安装目录（默认 `C:\Program Files\DeepSeek Harness Desktop`），可自定义
 3. 点击"安装"，等待进度完成
 4. 完成后会自动在**桌面**和**开始菜单**创建快捷方式（DeepSeek 鲸鱼图标）

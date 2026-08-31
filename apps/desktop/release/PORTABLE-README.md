@@ -1,4 +1,4 @@
-# DeepSeek Harness Desktop — 便携版 (0.1.1-rc.2)
+# DeepSeek Harness Desktop — 便携版 (0.1.2-alpha.2)
 
 **文件**：`win-unpacked/` 目录　**平台**：Windows x64　**形态**：免安装
 
