@@ -485,6 +485,36 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     return snapshots
   }
 
+  /**
+   * Permanently delete one stored session: remove its per-session directory
+   * (the log artifact plus any backend-owned siblings) and clean up a now-empty
+   * project directory. The artifact is found by scanning project directories
+   * (the same way the id-only reads resolve an unknown cwd). A session with no
+   * stored artifact is a no-op. Content-addressed attachments referenced by the
+   * session are NOT removed.
+   * @param id - the persisted session to delete.
+   * @param signal - optional cancellation for the scan and removal work.
+   */
+  override async delete(id: SessionId, signal?: AbortSignal): Promise<void> {
+    signal?.throwIfAborted()
+    await this.ensureRootEncoding()
+    signal?.throwIfAborted()
+    const path = await this.findLog(id, signal)
+    if (path === undefined) return
+    const sessionDir = dirname(path)
+    const projectDir = dirname(sessionDir)
+    signal?.throwIfAborted()
+    await rm(sessionDir, { recursive: true, force: true })
+    signal?.throwIfAborted()
+    // Best-effort cleanup of a project directory that held only this session.
+    try {
+      const entries = await readdir(projectDir)
+      if (entries.length === 0) await rm(projectDir, { recursive: true, force: true })
+    } catch {
+      /* the project directory is left in place; only removal of the session is required */
+    }
+  }
+
   private async listArtifacts(signal?: AbortSignal): Promise<Array<{ header: SessionHeader; path: string }>> {
     signal?.throwIfAborted()
     await this.ensureRootEncoding()

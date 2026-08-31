@@ -274,6 +274,30 @@ export class SqliteStore implements PersistenceBackend<number> {
     }))
   }
 
+  /**
+   * Permanently delete one materialized session: remove every event row
+   * (including packed chunk rows) and the session metadata row in one
+   * transaction. A session with no metadata row is a no-op. Content-addressed
+   * attachments referenced by the session are NOT removed.
+   * @param id - the persisted session to delete.
+   * @param signal - optional cancellation before or after the delete.
+   */
+  async deleteSession(id: SessionId, signal?: AbortSignal): Promise<void> {
+    await this.observe(signal)
+    signal?.throwIfAborted()
+    if (this.rowFor(id) === undefined) return
+    this.db.exec(sql('begin-immediate'))
+    try {
+      validateSchemaForMutation(this.databaseConstructor, this.db, this.databasePath)
+      this.db.prepare(sql('delete-session-events')).run(id)
+      this.db.prepare(sql('delete-session')).run(id)
+      this.db.exec(sql('commit'))
+    } catch (error: unknown) {
+      this.rollback(error, 'delete-session')
+    }
+    signal?.throwIfAborted()
+  }
+
   async close(): Promise<void> {
     if (this.ready === undefined) {
       if (this.pathReady !== undefined) await Promise.allSettled([this.pathReady])

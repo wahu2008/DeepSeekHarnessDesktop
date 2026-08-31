@@ -139,6 +139,15 @@ export class SqliteSessionPersistence extends SessionPersistence {
   listSnapshots(signal?: AbortSignal): Promise<SessionPersistenceSnapshot[]> {
     return this.store.listSnapshots(signal)
   }
+
+  /**
+   * Permanently delete one session's rows (events + metadata). Content-addressed
+   * attachments referenced by the session are NOT removed. A session with no
+   * stored rows is a no-op.
+   */
+  override delete(id: SessionId, signal?: AbortSignal): Promise<void> {
+    return this.store.deleteSession(id, signal)
+  }
 }
 
 export default SqliteSessionPersistence
