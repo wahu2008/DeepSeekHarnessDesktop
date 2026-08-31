@@ -16,10 +16,10 @@ const CLIENT_SERVICES: Readonly<Record<string, readonly string[]>> = {
   slots: ['register', 'inject'],
   theme: ['getTheme', 'setTheme', 'setFontSize', 'register', 'overrideTokens'],
   uiWorkspace: [
-    'connectWorkspace', 'startSession', 'archiveSession', 'pickDirectory', 'listDirectory',
-    'createDirectory',
+    'connectWorkspace', 'startSession', 'archiveSession', 'unarchiveSession', 'deleteSession',
+    'pickDirectory', 'listDirectory', 'createDirectory',
   ],
-  workspaces: ['create', 'rename', 'delete', 'insertSessionBefore', 'archiveSession'],
+  workspaces: ['create', 'rename', 'delete', 'insertSessionBefore', 'archiveSession', 'unarchiveSession', 'deleteSession'],
 }
 
 const CLIENT_EVENTS = new Set([

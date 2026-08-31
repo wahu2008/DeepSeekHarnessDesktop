@@ -233,6 +233,20 @@ Host service backing the generated `ctx.remote.workspace` namespace.
 @Remote('archiveSession') archiveSession(request: WorkspaceArchiveSessionRequest): Promise<WorkspaceArchiveValue>
 
 /**
+ * Remove one known Session from the registry-global archive set.
+ * @param request - Session identity to unarchive.
+ * @returns the complete resulting archive set.
+ */
+@Remote('unarchiveSession') unarchiveSession(request: WorkspaceUnarchiveSessionRequest): Promise<WorkspaceUnarchiveSessionValue>
+
+/**
+ * Permanently delete one archived Session's durable content.
+ * @param request - archived Session identity to delete.
+ * @returns deletion confirmation.
+ */
+@Remote('deleteSession') deleteSession(request: WorkspaceDeleteSessionRequest): Promise<WorkspaceDeleteSessionValue>
+
+/**
  * Stream a complete Workspace baseline followed by ordered increments.
  * @param signal - generation cancellation.
  * @returns baseline followed by ordered Workspace increments.
@@ -304,6 +318,28 @@ insertBefore(id: WorkspaceId, beforeId?: WorkspaceId): Promise<readonly Workspac
  * @returns resolution after durability.
  */
 archiveSession(sessionId: SessionId): Promise<void>
+
+/**
+ * Remove one session from the archived set durably. The session keeps its
+ * workspace accounting slot, so unarchiving restores its original grouping
+ * position. An id that is not archived resolves without writing.
+ * @param sessionId - The session to unarchive.
+ * @returns resolution after durability.
+ */
+unarchiveSession(sessionId: SessionId): Promise<void>
+
+/**
+ * Permanently delete an archived session's durable content. Accepts only an
+ * archived session, removes the id from the archived set, detaches it from any
+ * workspace accounting slot, and deletes the persisted log through
+ * `sessionPersistence.delete`. Content-addressed attachments are NOT removed.
+ * A backend that cannot delete reports a storage fault but the registry still
+ * drops the archive/accounting entries.
+ * @param sessionId - The archived session to delete permanently.
+ * @returns resolution after the registry writes and best-effort backend delete.
+ * @throws {@link WorkspaceSessionNotArchivedError} when not archived.
+ */
+deleteSession(sessionId: SessionId): Promise<void>
 
 /**
  * Resolve by canonical directory path without creating or mutating a

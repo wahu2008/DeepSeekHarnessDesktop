@@ -1482,6 +1482,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['when this backend does not expose per-session raw artifacts.'],
       },
       {
+        signature: 'delete(_id: SessionId, signal?: AbortSignal): Promise<void>',
+        description: 'Permanently delete a session\'s durable content. Backends that own a per-session artifact override it to remove that artifact (and empty stores). The default rejects so a backend that cannot delete reports a storage fault rather than silently leaking the artifact. Callers must treat a rejected `delete` as "the content could not be removed" — never mistake it for a session being gone from the UI.',
+        parameters: [{ name: '_id', description: 'the persisted session to delete (unused by the default).' }, { name: 'signal', description: 'optional cancellation for backend delete work.' }],
+      },
+      {
         signature: 'abstract create(meta: SessionHeader): Promise<void>',
         description: 'Register a new session\'s metadata. A backend MAY defer the physical write until the first append (lazy materialization), in which case a created-but-never-appended session is absent from list — abandoned sessions leave nothing behind.',
         parameters: [{ name: 'meta', description: 'the immutable header (id, version, cwd, lineage) to record.' }],
@@ -2827,6 +2832,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the complete resulting archive set.',
       },
       {
+        signature: '@Remote(\'unarchiveSession\') unarchiveSession(request: WorkspaceUnarchiveSessionRequest): Promise<WorkspaceUnarchiveSessionValue>',
+        description: 'Remove one known Session from the registry-global archive set.',
+        parameters: [{ name: 'request', description: 'Session identity to unarchive.' }],
+        returns: 'the complete resulting archive set.',
+      },
+      {
+        signature: '@Remote(\'deleteSession\') deleteSession(request: WorkspaceDeleteSessionRequest): Promise<WorkspaceDeleteSessionValue>',
+        description: 'Permanently delete one archived Session\'s durable content.',
+        parameters: [{ name: 'request', description: 'archived Session identity to delete.' }],
+        returns: 'deletion confirmation.',
+      },
+      {
         signature: '@Remote({ mode: \'stream\' }) follow(signal: AbortSignal): AsyncIterable<WorkspaceFollowFrame>',
         description: 'Stream a complete Workspace baseline followed by ordered increments.',
         parameters: [{ name: 'signal', description: 'generation cancellation.' }],
@@ -2874,6 +2891,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Archive one session durably. The session must exist (live or in session persistence); its workspace accounting — or lack of one — is irrelevant. An already archived id resolves without writing.',
         parameters: [{ name: 'sessionId', description: 'The session to archive.' }],
         returns: 'resolution after durability.',
+      },
+      {
+        signature: 'unarchiveSession(sessionId: SessionId): Promise<void>',
+        description: 'Remove one session from the archived set durably. The session keeps its workspace accounting slot, so unarchiving restores its original grouping position. An id that is not archived resolves without writing.',
+        parameters: [{ name: 'sessionId', description: 'The session to unarchive.' }],
+        returns: 'resolution after durability.',
+      },
+      {
+        signature: 'deleteSession(sessionId: SessionId): Promise<void>',
+        description: 'Permanently delete an archived session\'s durable content. Accepts only an archived session, removes the id from the archived set, detaches it from any workspace accounting slot, and deletes the persisted log through `sessionPersistence.delete`. Content-addressed attachments are NOT removed. A backend that cannot delete reports a storage fault but the registry still drops the archive/accounting entries.',
+        parameters: [{ name: 'sessionId', description: 'The archived session to delete permanently.' }],
+        returns: 'resolution after the registry writes and best-effort backend delete.',
+        throws: ['{@link WorkspaceSessionNotArchivedError} when not archived.'],
       },
       {
         signature: 'async resolveByPath(path: string): Promise<Workspace | undefined>',
@@ -6140,6 +6170,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface WorkspaceDeleteRequest {\n    readonly workspaceId: WorkspaceId;\n}',
   },
   {
+    name: 'WorkspaceDeleteSessionRequest',
+    declaration: 'export interface WorkspaceDeleteSessionRequest {\n    readonly sessionId: SessionId;\n}',
+  },
+  {
+    name: 'WorkspaceDeleteSessionValue',
+    declaration: 'export interface WorkspaceDeleteSessionValue {\n    readonly deleted: true;\n}',
+  },
+  {
     name: 'WorkspaceDeleteValue',
     declaration: 'export interface WorkspaceDeleteValue {\n    readonly deleted: true;\n}',
   },
@@ -6166,6 +6204,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkspaceRenameRequest',
     declaration: 'export interface WorkspaceRenameRequest {\n    readonly workspaceId: WorkspaceId;\n    readonly title: string;\n}',
+  },
+  {
+    name: 'WorkspaceUnarchiveSessionRequest',
+    declaration: 'export interface WorkspaceUnarchiveSessionRequest {\n    readonly sessionId: SessionId;\n}',
+  },
+  {
+    name: 'WorkspaceUnarchiveSessionValue',
+    declaration: 'export interface WorkspaceUnarchiveSessionValue {\n    readonly archivedSessionIds: readonly SessionId[];\n}',
   },
   {
     name: 'WorkspaceValue',

@@ -277,6 +277,18 @@ abstract locate(meta: SessionHeader): SessionLocation | undefined
 readRaw(_id: SessionId, signal?: AbortSignal): Promise<SessionRawArtifact | undefined>
 
 /**
+ * Permanently delete a session's durable content. Backends that own a
+ * per-session artifact override it to remove that artifact (and empty
+ * stores). The default rejects so a backend that cannot delete reports a
+ * storage fault rather than silently leaking the artifact. Callers must
+ * treat a rejected `delete` as "the content could not be removed" — never
+ * mistake it for a session being gone from the UI.
+ * @param _id - the persisted session to delete (unused by the default).
+ * @param signal - optional cancellation for backend delete work.
+ */
+delete(_id: SessionId, signal?: AbortSignal): Promise<void>
+
+/**
  * Register a new session's metadata. A backend MAY defer the physical write
  * until the first {@link append} (lazy materialization), in which case a
  * created-but-never-appended session is absent from {@link list}
