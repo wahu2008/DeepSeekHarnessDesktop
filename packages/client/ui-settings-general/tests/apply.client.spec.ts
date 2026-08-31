@@ -7,6 +7,7 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import { apply as settingsApply, inject as settingsInject } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { apply, inject } from '@deepseek-ai/dsh-client-ui-settings-general/client'
+import { AboutSection } from '../src/client/AboutSection.tsx'
 import { CloseLabel, HeaderContent, TriggerContent } from '../src/client/chrome.tsx'
 import { GeneralSection } from '../src/client/GeneralSection.tsx'
 import { SettingsDocumentAction } from '../src/client/SettingsDocumentAction.tsx'
@@ -22,7 +23,6 @@ const SEATS = [
   ['settings.header', HeaderContent],
   ['settings.action', SettingsDocumentAction],
   ['settings.close', CloseLabel],
-  ['settings.section', GeneralSection],
 ] as const
 
 async function bench(isLoopback = true) {
@@ -89,6 +89,9 @@ describe('ui-settings-general apply', () => {
     for (const [name, component] of SEATS) {
       expect(before.slots.entries(name)[0]!.component).toBe(component)
     }
+    // This plugin seats the General and the desktop About section.
+    const sectionComponents = before.slots.entries('settings.section').map(e => e.component)
+    expect(sectionComponents).toEqual([GeneralSection, AboutSection])
     const entry = generalEntry(before.slots)!
     expect(entry.options).toMatchObject({ id: 'general', order: 0 })
     // The nav label is a locale-following thunk; owners resolve at read time.
@@ -118,6 +121,8 @@ describe('ui-settings-general apply', () => {
     }
     await vi.waitFor(() => {
       expect(after.slots.spec('settings.general.item')).toEqual({ kind: 'list', scope: 'root' })
+      // The two section registrations survive the declaration cycle.
+      expect(after.slots.entries('settings.section')).toHaveLength(2)
     })
   })
 

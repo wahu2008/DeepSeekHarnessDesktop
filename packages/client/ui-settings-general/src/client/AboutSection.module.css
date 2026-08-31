@@ -1,0 +1,58 @@
+/* Desktop "About" section: a title, key/value rows, and an update action. */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 14px;
+}
+
+.desc {
+  color: var(--dsw-alias-label-primary, #d0d4dc);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--dsw-alias-border-tertiary, rgba(255, 255, 255, .08));
+}
+
+.label {
+  flex: 0 0 auto;
+  width: 96px;
+  color: var(--dsw-alias-label-tertiary, #8a8f98);
+  font-size: 12px;
+}
+
+.value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: break-word;
+  color: var(--dsw-alias-label-secondary, #aeb3bd);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.link {
+  color: var(--dsw-alias-accent-primary, #4d9fff);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.button {
+  align-self: flex-start;
+}
