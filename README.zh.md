@@ -18,11 +18,11 @@
 - **会话归档管理**：支持对归档会话执行**取消归档**与**永久删除**（含持久化层的真正删除），并从设置页管理。
 - **品牌**：界面文案使用 **DSH WAHU版**。
 
-桌面壳的详细设计与打包方式，见 [`apps/desktop/README.md`](apps/desktop/README.md) 与 [`apps/desktop/PACKAGING-PROMPT.md`](apps/desktop/PACKAGING-PROMPT.md)。官方 CLI 的能力说明见 [`apps/cli/README.md`](apps/cli/README.md)。
+桌面壳的详细设计与打包方式，见 [`apps/desktop/README.zh.md`](apps/desktop/README.zh.md) 与 [`apps/desktop/PACKAGING-PROMPT.md`](apps/desktop/PACKAGING-PROMPT.md)。官方 CLI 的能力说明见 [`apps/cli/README.zh.md`](apps/cli/README.zh.md)。
 
 ## 安全说明
 
-> 本项目基于官方 `dsh`，仍处于**开发者预览**阶段并快速迭代，**未来将出现破坏兼容性的变更**。运行前请阅读[安全说明](SAFETY.zh.md)（[英文](SAFETY.md)）。
+> 本项目基于官方 `dsh`，仍处于**开发者预览**阶段并快速迭代，**未来将出现破坏兼容性的变更**。运行前请阅读[安全说明](SAFETY.zh.md)。
 
 > **安全修复**：本 fork 以官方 `v0.1.2-alpha.2` 为基线，其中包含对 **QVD-2026-57410**（未认证 web 控制面 RCE，CVSS 9.8）的修复（浏览器 Host API 认证）。桌面壳会加载带进程令牌的鉴权 URL，未认证访问会被网关以 401 拒绝。
 
@@ -62,7 +62,7 @@ node apps/desktop/scripts/stage.mjs             # 重组为壳期望的布局
 cd apps/desktop && npx electron-builder --win nsis
 ```
 
-产物位于 `apps/desktop/release/`：`win-unpacked/`（便携版）与 NSIS 安装器 `DeepSeek Harness Desktop Setup <version>.exe`。完整步骤见 [`apps/desktop/README.md`](apps/desktop/README.md#打包installable)。
+产物位于 `apps/desktop/release/`：`win-unpacked/`（便携版）与 NSIS 安装器 `DeepSeek Harness Desktop Setup <version>.exe`。完整步骤见 [`apps/desktop/README.zh.md`](apps/desktop/README.zh.md)。
 
 ## 目录结构
 

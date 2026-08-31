@@ -1,38 +1,38 @@
-# DeepSeek Harness Desktop — DSH WAHU版
+# DeepSeek Harness Desktop — DSH WAHU Edition
 
 English | [中文](README.zh.md)
 
-**DSH WAHU版**（DeepSeek Harness Desktop）是 [DeepSeek Harness](https://github.com/deepseek-harness/deepseek-harness)（`dsh`）的个人/社区 fork，主打**桌面体验**：一个 Electron 桌面壳，内建 `dsh web` 宿主。
+**DSH WAHU Edition** (DeepSeek Harness Desktop) is a personal/community fork of [DeepSeek Harness](https://github.com/deepseek-harness/deepseek-harness) (`dsh`) focused on the **desktop experience**: an Electron desktop shell that embeds the `dsh web` host.
 
-这个仓库以官方 `dsh` 为上游基线（当前基于 `v0.1.2-alpha.2`），在其上重放了桌面壳与一系列面向桌面用户的改进。官方 deepseek-harness 的架构、插件体系与核心能力全部保留——本 fork 只是把它带进了一个原生桌面窗口，并加上更贴近本地使用的启动、打包与归档体验。
+This repository uses the official `dsh` as its upstream baseline (currently based on `v0.1.2-alpha.2`) and replays the desktop shell plus a set of desktop-facing improvements on top of it. All of the official deepseek-harness architecture, plugin system, and core capabilities are preserved — this fork simply brings it into a native desktop window and adds startup, packaging, and archiving ergonomics closer to local use.
 
-> 我们感谢并致谢 [DeepSeek AI](https://deepseek.com) 及其开源 [deepseek-harness](https://github.com/deepseek-harness/deepseek-harness)。DeepSeek Harness (`dsh`) 是一个**一切皆插件**的 agent harness，由 [Cordis](https://github.com/cordiverse/cordis) 驱动，其设计参见论文 [_A Programming Paradigm for Spatiotemporal Composability_](https://arxiv.org/abs/2608.25512)。
+> We thank and credit [DeepSeek AI](https://deepseek.com) and its open-source [deepseek-harness](https://github.com/deepseek-harness/deepseek-harness). DeepSeek Harness (`dsh`) is an **everything-is-a-plugin** agent harness, powered by [Cordis](https://github.com/cordiverse/cordis), whose design is described in the paper [_A Programming Paradigm for Spatiotemporal Composability_](https://arxiv.org/abs/2608.25512).
 
-## 这个 fork 做了什么
+## What this fork does
 
-相对官方 `dsh`，本 fork 的主要差异集中在**桌面化的可用性**：
+Relative to the official `dsh`, this fork's differences are concentrated in **desktop usability**:
 
-- **桌面壳（Electron）**：一个原生窗口加载 `dsh web` 宿主，并提供安装器（NSIS / 便携版）。
-- **窗口先行启动**：宿主在后台并行启动，窗口与启动页立即出现，避免"等待宿主就绪期间无窗口"的漫长空白。
-- **启动计时诊断**：主进程把启动时间线写入 `dsh-desktop.log`，便于冷/热启动对比定位瓶颈。
-- **会话归档管理**：支持对归档会话执行**取消归档**与**永久删除**（含持久化层的真正删除），并从设置页管理。
-- **品牌**：界面文案使用 **DSH WAHU版**。
+- **Desktop shell (Electron)**: a native window loads the `dsh web` host, with an installer (NSIS / portable).
+- **Window-first startup**: the host boots in the background while the window and startup page appear immediately, avoiding the long blank period of "no window until the host is ready".
+- **Startup timing diagnostics**: the main process writes a boot timeline to `dsh-desktop.log` for cold/warm comparison and bottleneck location.
+- **Session archive management**: supports **unarchive** and **permanent delete** (including a real persistence-layer delete) on archived sessions, managed from the settings page.
+- **Branding**: the UI copy uses **DSH WAHU Edition**.
 
-桌面壳的详细设计与打包方式，见 [`apps/desktop/README.md`](apps/desktop/README.md) 与 [`apps/desktop/PACKAGING-PROMPT.md`](apps/desktop/PACKAGING-PROMPT.md)。官方 CLI 的能力说明见 [`apps/cli/README.md`](apps/cli/README.md)。
+For the desktop shell's detailed design and packaging, see [`apps/desktop/README.md`](apps/desktop/README.md) and [`apps/desktop/PACKAGING-PROMPT.md`](apps/desktop/PACKAGING-PROMPT.md). For the official CLI's capabilities, see [`apps/cli/README.md`](apps/cli/README.md).
 
-## 安全说明
+## Security notice
 
-> 本项目基于官方 `dsh`，仍处于**开发者预览**阶段并快速迭代，**未来将出现破坏兼容性的变更**。运行前请阅读[安全说明](SAFETY.md)（[中文](SAFETY.zh.md)）。
+> This project is based on the official `dsh`, still in **developer preview** and iterating rapidly: **compatibility-breaking changes will arrive**. Read the [safety notice](SAFETY.md) before running.
 
-> **安全修复**：本 fork 以官方 `v0.1.2-alpha.2` 为基线，其中包含对 **QVD-2026-57410**（未认证 web 控制面 RCE，CVSS 9.8）的修复（浏览器 Host API 认证）。桌面壳会加载带进程令牌的鉴权 URL，未认证访问会被网关以 401 拒绝。
+> **Security fix**: this fork uses the official `v0.1.2-alpha.2` baseline, which includes the fix for **QVD-2026-57410** (unauthenticated web control-plane RCE, CVSS 9.8) via browser Host API authentication. The desktop shell loads the authenticated URL with the process token; unauthenticated access is rejected with 401 by the gateway.
 
 <a id="run"></a>
 
-## 开始使用
+## Getting started
 
 <a id="run-from-source"></a>
 
-### 从源码构建并运行
+### Build and run from source
 
 ```sh
 git clone https://github.com/wahu2008/DeepSeekHarnessDesktop.git
@@ -42,17 +42,17 @@ pnpm run build          # 构建 lib + 前端 dist
 pnpm dsh web            # 用已构建产物启动 web 宿主
 ```
 
-- `pnpm run build` 构建仓库产物。
-- 默认在 `http://127.0.0.1:3080` 启动 Web UI，本机启动自动打开浏览器；`--no-open` 只运行服务器不打开浏览器。详见 [Web UI 指南](docs/user/guide/index.md)。
+- `pnpm run build` builds the repository artifacts.
+- The Web UI starts at `http://127.0.0.1:3080` by default and opens in the default browser for a local launch; `--no-open` runs the server without opening a browser. See the [Web UI guide](docs/user/guide/index.md).
 
-### 运行桌面壳（开发）
+### Run the desktop shell (dev)
 
 ```sh
 pnpm --filter @deepseek-ai/dsh-desktop run build
 pnpm --filter @deepseek-ai/dsh-desktop start     # electron .
 ```
 
-### 打包可安装桌面应用
+### Package an installable desktop app
 
 ```sh
 pnpm run build                                  # 先构建完整产物
@@ -62,27 +62,27 @@ node apps/desktop/scripts/stage.mjs             # 重组为壳期望的布局
 cd apps/desktop && npx electron-builder --win nsis
 ```
 
-产物位于 `apps/desktop/release/`：`win-unpacked/`（便携版）与 NSIS 安装器 `DeepSeek Harness Desktop Setup <version>.exe`。完整步骤见 [`apps/desktop/README.md`](apps/desktop/README.md#打包installable)。
+The artifacts live in `apps/desktop/release/`: `win-unpacked/` (portable) and the NSIS installer `DeepSeek Harness Desktop Setup <version>.exe`. Full steps are in [`apps/desktop/README.md`](apps/desktop/README.md).
 
-## 目录结构
+## Directory layout
 
-| 目录 | 说明 |
+| Directory | Description |
 |---|---|
-| [`apps/desktop`](apps/desktop) | **本 fork 的核心**：Electron 桌面壳、启动优化、打包脚本（`flatten.mjs`/`stage.mjs`）。 |
-| [`apps/cli`](apps/cli) | `dsh` 命令行（唯一支持的 Node 应用启动器），`web` 是其一个 profile。 |
-| [`apps/web`](apps/web) | Web 前端（vite 构建的 SPA，`dist/` 由 `dsh web` 服务）。 |
-| [`packages`](packages) | 官方 `dsh` 插件体系（控制器、Remote、会话、工作区等）。 |
-| [`docs`](docs) | 文档。 |
-| [`website`](website) | 文档站构建。 |
+| [`apps/desktop`](apps/desktop) | **This fork's core**: Electron desktop shell, startup improvements, packaging scripts (`flatten.mjs`/`stage.mjs`). |
+| [`apps/cli`](apps/cli) | The `dsh` command line (the sole supported Node application launcher); `web` is one of its profiles. |
+| [`apps/web`](apps/web) | Web frontend (vite-built SPA; `dist/` served by `dsh web`). |
+| [`packages`](packages) | The official `dsh` plugin system (controllers, Remote, sessions, workspaces, etc.). |
+| [`docs`](docs) | Documentation. |
+| [`website`](website) | The docs-site build. |
 
-## 开发
+## Development
 
-- 从[开发指南](docs/development.md)与[架构文档](docs/architecture.md)开始。
-- 面向 agent：遵循 [AGENTS.md](AGENTS.md)。
-- 贡献：见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+- Start with the [development guide](docs/development.md) and the [architecture documentation](docs/architecture.md).
+- For agents, follow [AGENTS.md](AGENTS.md).
+- Contributing: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## 许可证
+## License
 
-[MIT](LICENSE) 许可。
+[MIT](LICENSE).
 
-第三方依赖及其许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。上游官方项目见 [deepseek-harness/deepseek-harness](https://github.com/deepseek-harness/deepseek-harness)。
+Third-party dependencies and their licenses are disclosed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The upstream official project is [deepseek-harness/deepseek-harness](https://github.com/deepseek-harness/deepseek-harness).

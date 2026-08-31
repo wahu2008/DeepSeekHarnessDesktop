@@ -1,4 +1,6 @@
-# dsh-desktop (Electron shell)
+# dsh-desktop (Electron 桌面壳)
+
+[English](README.md) | 中文
 
 DeepSeek Harness 桌面壳：一个 Electron 窗口，spawn 系统 Node 运行 `dsh web` 宿主并加载其 UI。
 
@@ -42,9 +44,9 @@ Node 内部 ESM loader。在 Electron 的 Node ABI 下该扩展不可用，`Modu
 
 ```sh
 pnpm install
-pnpm run build                 # 构建 lib + 前端 dist
-pnpm --filter @deepseek-ai/dsh-desktop run build   # 编译壳 src → lib
-pnpm --filter @deepseek-ai/dsh-desktop start       # electron . 启动
+pnpm run build                 # build lib + frontend dist
+pnpm --filter @deepseek-ai/dsh-desktop run build   # compile shell src → lib
+pnpm --filter @deepseek-ai/dsh-desktop start       # electron . launch
 ```
 
 壳 spawn `node <apps/cli>/lib/bin.js --profile web --port 0`，解析 stdout 的 URL 行并加载窗口。
@@ -59,24 +61,24 @@ NSIS 安装器 `release/DeepSeek Harness Desktop Setup <version>.exe`。
 node_modules 是符号链接，`pnpm deploy` 又丢 peer deps，因此用仓库内脚本自己展平：
 
 ```sh
-# 0. 确保已完整构建（lib + 前端 dist）
+# 0. Ensure a full build (lib + frontend dist)
 pnpm run build
 
-# 1. 展平运行时依赖闭包（BFS over deps/peer/optional，按父包逐包解析）
+# 1. Flatten the runtime dependency closure (BFS over deps/peer/optional, resolved per parent package)
 node apps/desktop/scripts/flatten.mjs
-#    -> apps/desktop/staging/dsh-flat/node_modules/<name>/  (528 个真实文件包)
+#    -> apps/desktop/staging/dsh-flat/node_modules/<name>/  (528 real packages)
 
-# 2. 重组为壳期望的布局：dsh/lib/bin.js + dsh/node_modules/
+# 2. Reassemble into the layout the shell expects: dsh/lib/bin.js + dsh/node_modules/
 node apps/desktop/scripts/stage.mjs
 #    -> apps/desktop/staging/dsh/{lib,config,package.json,node_modules/}
 
-# 3. 放置系统 Node 运行时 + 已解压的 Electron 发行版（electronDist 用于规避
-#    Windows 上 electron-builder 对刚写入 225MB exe 的瞬时写锁 EPERM）
+# 3. Place the system Node runtime + the unpacked Electron distribution (electronDist avoids
+#    Windows' transient EPERM write-lock on the freshly written 225MB exe)
 Copy-Item "$(node -e "process.stdout.write(process.execPath)")" apps/desktop/staging/node/node.exe
 $zip = Get-ChildItem "$env:LOCALAPPDATA\electron\Cache\*\electron-v43.4.0-win32-x64.zip" | Sort-Object LastWriteTime | Select-Object -Last 1
 Expand-Archive $zip.FullName apps/desktop/staging/electron-dist -Force
 
-# 4. 打包
+# 4. Package
 cd apps/desktop
 npx electron-builder --win nsis
 ```
