@@ -152,7 +152,7 @@ function spawnHost(): Promise<string> {
     const onData = (chunk: Buffer): void => {
       buffer += chunk.toString('utf8')
       log('HOST-OUT: ' + chunk.toString('utf8').trimEnd())
-      const match = buffer.match(/dsh web: (http:\/\/127\.0\.0\.1:\d+)/)
+      const match = buffer.match(/dsh web: (\S+)/)
       if (!settled && match !== null) {
         settled = true
         clearTimeout(timeout)
@@ -371,17 +371,11 @@ async function recoverHost(): Promise<void> {
   if (recovering) return
   recovering = true
   try {
-    const url = `http://127.0.0.1:${hostPort}`
-    const deadline = Date.now() + 25_000
-    while (Date.now() < deadline && !(await isPortOpen(hostPort))) {
-      await new Promise(resolve => setTimeout(resolve, 500))
-    }
-    if (await isPortOpen(hostPort)) {
-      log(`port ${hostPort} reclaimed by a replacement host; reloading window`)
-      await loadWindow(url)
-      return
-    }
-    log('no replacement claimed the port; shell respawns the host')
+    // A host restart mints a NEW process token; the shell cannot read a
+    // replacement host's URL line (it is not our child), so clear any
+    // replacement on our pinned port and re-spawn to obtain a fresh
+    // authenticated URL, then reload the window against it.
+    killOrphanHosts()
     const newUrl = await spawnHost()
     await loadWindow(newUrl)
   } catch (error) {
