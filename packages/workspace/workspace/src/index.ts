@@ -321,11 +321,7 @@ export class WorkspaceRegistry extends Service {
           await entity.detachSession(sessionId)
         }
       }
-      await this.ctx.sessionPersistence.delete(sessionId).catch((error: unknown) => {
-        this.ctx.logger.warn(
-          `workspace: could not delete persisted session '${sessionId}': ${error instanceof Error ? error.message : String(error)}`,
-        )
-      })
+      await this.deletePersistedSession(sessionId)
       const next = this.requireState()
       const nextArchived = next.archivedSessionIds.filter(id => id !== sessionId)
       if (nextArchived.length !== next.archivedSessionIds.length) {
@@ -648,6 +644,32 @@ export class WorkspaceRegistry extends Service {
 
   private async indexHeaders(headers: readonly SessionHeader[]): Promise<void> {
     for (const header of headers) await this.indexHeader(header)
+  }
+
+  /**
+   * Best-effort delete of one session's persisted content. A backend that does
+   * not expose `delete` (unsupported) or rejects is treated as a storage fault:
+   * the registry still drops the archive/accounting entries so the session
+   * leaves the UI, but the durable content may remain. Callers must never
+   * mistake a rejected `delete` for the session being gone from the registry.
+   * @param sessionId - the archived session being deleted.
+   */
+  private async deletePersistedSession(sessionId: SessionId): Promise<void> {
+    const del = this.ctx.sessionPersistence.delete
+    if (typeof del !== 'function') {
+      this.ctx.logger.warn(
+        `workspace: session persistence does not support deleting '${sessionId}'; durable content was retained`,
+      )
+      return
+    }
+    try {
+      await del.call(this.ctx.sessionPersistence, sessionId)
+    } catch (error) {
+      /* v8 ignore next -- only reachable when the backend rejects a delete or throws synchronously. */
+      this.ctx.logger.warn(
+        `workspace: could not delete persisted session '${sessionId}': ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
   }
 
   /** Resolve one cwd to its canonical directory, memoized per distinct cwd. */

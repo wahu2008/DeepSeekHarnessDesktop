@@ -200,6 +200,8 @@ interface FixtureWorkspaceRequests {
     readonly beforeSessionId?: SessionId
   }
   archiveSession: { readonly sessionId: SessionId }
+  unarchiveSession: { readonly sessionId: SessionId }
+  deleteSession: { readonly sessionId: SessionId }
 }
 
 interface FixtureWorkspaceValues {
@@ -209,6 +211,8 @@ interface FixtureWorkspaceValues {
   insertBefore: { readonly workspaceIds: readonly WorkspaceId[] }
   insertSessionBefore: { readonly workspace: FixtureWorkspaceView }
   archiveSession: { readonly archivedSessionIds: readonly SessionId[] }
+  unarchiveSession: { readonly archivedSessionIds: readonly SessionId[] }
+  deleteSession: { readonly deleted: true }
 }
 
 type FixtureWorkspaceApi = {
@@ -477,6 +481,8 @@ function createWorkspaceApi(rpc: ClientConnectionRpc): FixtureWorkspaceApi {
     insertBefore: (request, signal) => call('insertBefore', request, signal),
     insertSessionBefore: (request, signal) => call('insertSessionBefore', request, signal),
     archiveSession: (request, signal) => call('archiveSession', request, signal),
+    unarchiveSession: (request, signal) => call('unarchiveSession', request, signal),
+    deleteSession: (request, signal) => call('deleteSession', request, signal),
   }
 }
 
@@ -489,6 +495,8 @@ function createWorkspaceClient(rpc: ClientConnectionRpc): FixtureWorkspaceClient
     insertBefore: (request, signal) => api.insertBefore(req(request), signal),
     insertSessionBefore: (request, signal) => api.insertSessionBefore(req(request), signal),
     archiveSession: (request, signal) => api.archiveSession(req(request), signal),
+    unarchiveSession: (request, signal) => api.unarchiveSession(req(request), signal),
+    deleteSession: (request, signal) => api.deleteSession(req(request), signal),
   }
 }
 

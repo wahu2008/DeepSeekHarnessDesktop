@@ -69,6 +69,15 @@ export const zh = {
   'time.months': '{n}个月',
   'time.years': '{n}年',
   'time.ago': '{t}前',
+  'archive.management': '归档管理',
+  'archive.empty': '暂无归档会话',
+  'archive.unarchive': '取消归档',
+  'archive.unarchive.pending': '正在取消归档…',
+  'archive.delete': '永久删除',
+  'archive.delete.title': '删除归档会话',
+  'archive.delete.desc': '将永久删除会话“{name}”及其持久化内容（引用的文件附件会保留）。此操作不可撤销。',
+  'archive.delete.pending': '正在删除…',
+  'archive.workspace': '工作区：{name}',
 } satisfies Record<string, string>
 
 /** The workspace namespace key union. */
@@ -139,4 +148,13 @@ export const en = {
   'time.months': '{n}mo',
   'time.years': '{n}y',
   'time.ago': '{t} ago',
+  'archive.management': 'Archive management',
+  'archive.empty': 'No archived sessions',
+  'archive.unarchive': 'Unarchive',
+  'archive.unarchive.pending': 'Unarchiving…',
+  'archive.delete': 'Delete',
+  'archive.delete.title': 'Delete archived session',
+  'archive.delete.desc': 'This permanently deletes the session “{name}” and its durable content (referenced file attachments are kept). This cannot be undone.',
+  'archive.delete.pending': 'Deleting…',
+  'archive.workspace': 'Workspace: {name}',
 } satisfies Record<WorkspaceKey, string>

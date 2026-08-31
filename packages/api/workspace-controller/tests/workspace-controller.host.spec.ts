@@ -146,6 +146,16 @@ describe('WorkspaceController commands', () => {
     vi.spyOn(ctx.workspaceRegistry, 'archiveSession').mockRejectedValueOnce(archiveFailure)
     await expect(controller.archiveSession({ sessionId: SessionId('session') }))
       .rejects.toBe(archiveFailure)
+
+    const unarchiveFailure = new Error('unarchive storage failed')
+    vi.spyOn(ctx.workspaceRegistry, 'unarchiveSession').mockRejectedValueOnce(unarchiveFailure)
+    await expect(controller.unarchiveSession({ sessionId: SessionId('session') }))
+      .rejects.toBe(unarchiveFailure)
+
+    const deleteFailure = new Error('delete storage failed')
+    vi.spyOn(ctx.workspaceRegistry, 'deleteSession').mockRejectedValueOnce(deleteFailure)
+    await expect(controller.deleteSession({ sessionId: SessionId('session') }))
+      .rejects.toBe(deleteFailure)
   })
 
   it('resolves queued Workspace identities when their operation starts', async () => {
@@ -216,6 +226,19 @@ describe('WorkspaceController commands', () => {
       .resolves.toEqual({ archivedSessionIds: [session.id] })
     await expect(controller.archiveSession({ sessionId: SessionId('unknown') }))
       .rejects.toMatchObject({ code: 'session/not-found' })
+
+    await expect(controller.unarchiveSession({ sessionId: session.id }))
+      .resolves.toEqual({ archivedSessionIds: [] })
+    // Unarchiving a ghost id is an idempotent domain no-op (display-set write).
+    await expect(controller.unarchiveSession({ sessionId: SessionId('unknown') }))
+      .resolves.toEqual({ archivedSessionIds: [] })
+
+    await expect(controller.archiveSession({ sessionId: session.id }))
+      .resolves.toEqual({ archivedSessionIds: [session.id] })
+    await expect(controller.deleteSession({ sessionId: session.id }))
+      .resolves.toEqual({ deleted: true })
+    await expect(controller.deleteSession({ sessionId: session.id }))
+      .rejects.toMatchObject({ code: 'workspace/session-not-archived' })
   })
 })
 

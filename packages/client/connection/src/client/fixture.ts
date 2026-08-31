@@ -308,6 +308,10 @@ interface WorkspaceInsertSessionBeforeRequest {
 }
 interface WorkspaceArchiveSessionRequest { readonly sessionId: SessionId }
 interface WorkspaceArchiveValue { readonly archivedSessionIds: readonly SessionId[] }
+interface WorkspaceUnarchiveSessionRequest { readonly sessionId: SessionId }
+interface WorkspaceUnarchiveSessionValue { readonly archivedSessionIds: readonly SessionId[] }
+interface WorkspaceDeleteSessionRequest { readonly sessionId: SessionId }
+interface WorkspaceDeleteSessionValue { readonly deleted: true }
 
 type WorkspaceFollowFrame =
   | {
@@ -329,6 +333,8 @@ interface FixtureWorkspaceApi {
   insertBefore(request: WorkspaceInsertBeforeRequest): Promise<ConnectionRpcResult<WorkspaceOrderValue>>
   insertSessionBefore(request: WorkspaceInsertSessionBeforeRequest): Promise<ConnectionRpcResult<WorkspaceValue>>
   archiveSession(request: WorkspaceArchiveSessionRequest): Promise<ConnectionRpcResult<WorkspaceArchiveValue>>
+  unarchiveSession(request: WorkspaceUnarchiveSessionRequest): Promise<ConnectionRpcResult<WorkspaceUnarchiveSessionValue>>
+  deleteSession(request: WorkspaceDeleteSessionRequest): Promise<ConnectionRpcResult<WorkspaceDeleteSessionValue>>
 }
 
 interface FixtureWorkspace {
@@ -1912,7 +1918,7 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
   let nextWorkspace = 1
   // Registry-global archive set mirroring the host: archived sessions keep
   // their workspace accounting slot and only grouping surfaces hide them.
-  const archivedSessionIds: SessionId[] = []
+  let archivedSessionIds: SessionId[] = []
   const workspaceSnapshot = (workspace: FixtureWorkspace): WorkspaceView => ({
     ...workspace,
     sessionIds: [...workspace.sessionIds],
@@ -3390,6 +3396,33 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
       }
       return sessionOk({ archivedSessionIds: [...archivedSessionIds] })
     },
+    unarchiveSession: (request) => {
+      if (summaryOf(request.sessionId) === undefined) {
+        return sessionErr({
+          code: 'session/not-found',
+          message: `no session ${request.sessionId}`,
+          details: { sessionId: request.sessionId },
+        })
+      }
+      const next = archivedSessionIds.filter(id => id !== request.sessionId)
+      if (next.length !== archivedSessionIds.length) {
+        archivedSessionIds = next
+        emitWorkspace({ type: 'archived', archivedSessionIds: [...archivedSessionIds] })
+      }
+      return sessionOk({ archivedSessionIds: [...archivedSessionIds] })
+    },
+    deleteSession: (request) => {
+      if (!archivedSessionIds.includes(request.sessionId)) {
+        return sessionErr({
+          code: 'workspace/session-not-archived',
+          message: `cannot delete session ${request.sessionId}: only archived sessions may be permanently deleted`,
+          details: { sessionId: request.sessionId },
+        })
+      }
+      archivedSessionIds = archivedSessionIds.filter(id => id !== request.sessionId)
+      emitWorkspace({ type: 'archived', archivedSessionIds: [...archivedSessionIds] })
+      return sessionOk({ deleted: true })
+    },
   }
 
   const rpc: ClientConnectionRpc = {
@@ -3572,6 +3605,8 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
           request as WorkspaceInsertSessionBeforeRequest,
         )
         case 'workspace/archiveSession': return workspaceApi.archiveSession(request as WorkspaceArchiveSessionRequest)
+        case 'workspace/unarchiveSession': return workspaceApi.unarchiveSession(request as WorkspaceUnarchiveSessionRequest)
+        case 'workspace/deleteSession': return workspaceApi.deleteSession(request as WorkspaceDeleteSessionRequest)
         default:
           return Promise.reject(new Error(`fixture connection RPC endpoint ${JSON.stringify(endpoint)} is unavailable`))
       }

@@ -20,6 +20,9 @@ import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 // Type-only: pulls the SlotRegistry service merge (ctx.slots).
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+// Type-only: pulls the `settings.section` SlotMap merge so the
+// ArchiveManagementSection registration type-checks.
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 // Type-only: pulls the Session root standard-hook merge.
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type { WorkspaceBrowserInjected, WorkspacePickerInjected } from './contract/slots.ts'
@@ -27,13 +30,17 @@ import { UiWorkspaceService } from './navigation.ts'
 import { createWorkspaceViewStore } from './stores.ts'
 import { WorkspaceBrowser } from './rows/WorkspaceBrowser.tsx'
 import { WorkspacePicker } from './WorkspacePicker.tsx'
+import { ArchiveManagementSection } from './ArchiveManagementSection.tsx'
+import type { ArchiveManagementInjected } from './ArchiveManagementSection.tsx'
 import { en, zh, type WorkspaceKey } from './locales.ts'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 
 export type { UiWorkspace } from './navigation.ts'
 export type {
   DirectoryFlowOwnerProps, DirectoryFlowSlotName, DirectoryPickingHooks, DirectoryPickingInjected,
   WorkspaceBrowserInjected, WorkspaceBrowserProps, WorkspacePickerInjected, WorkspacePickerProps,
 } from './contract/slots.ts'
+export type { ArchiveManagementInjected, ArchiveManagementProps } from './ArchiveManagementSection.tsx'
 export type { WorkspaceKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -153,5 +160,23 @@ export function apply(ctx: Context): void {
       locale: NS,
     },
     WorkspacePicker,
+  ))
+
+  // Archive management lives on the settings surface (the user-facing home for
+  // the verbs "unarchive" and "permanently delete" on archived sessions).
+  const archiveInjected = (): ArchiveManagementInjected => ({
+    unarchiveSession: (sessionId: SessionId) => uiWorkspace.unarchiveSession(sessionId),
+    deleteSession: (sessionId: SessionId) => uiWorkspace.deleteSession(sessionId),
+  })
+  ctx.slots.inject('settings.section', () => ctx.slots.register(
+    {
+      name: 'settings.section',
+      id: 'archive-management',
+      order: 30,
+      label: () => ctx.locale.bind(NS)('archive.management'),
+      locale: NS,
+      inject: archiveInjected,
+    },
+    ArchiveManagementSection,
   ))
 }

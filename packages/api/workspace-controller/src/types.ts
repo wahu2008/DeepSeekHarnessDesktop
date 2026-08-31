@@ -38,6 +38,8 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
       readonly sessionId: SessionId
       readonly beforeSessionId?: SessionId
     }
+    /** A permanent delete named a Session that is not in the archive set. */
+    'workspace/session-not-archived': { readonly sessionId: SessionId }
     /** The verb needs an interaction the composed backend does not serve. */
     'directory-picker/unavailable': { readonly capability: string }
     /** The target is not fully qualified, or the backend cannot list it. */
@@ -107,6 +109,26 @@ export interface WorkspaceArchiveSessionRequest {
 /** Complete archived Session set after a mutation. */
 export interface WorkspaceArchiveValue {
   readonly archivedSessionIds: readonly SessionId[]
+}
+
+/** One Session requested for removal from the registry-global archive set. */
+export interface WorkspaceUnarchiveSessionRequest {
+  readonly sessionId: SessionId
+}
+
+/** Complete archived Session set after an unarchive mutation. */
+export interface WorkspaceUnarchiveSessionValue {
+  readonly archivedSessionIds: readonly SessionId[]
+}
+
+/** One archived Session whose durable content should be permanently deleted. */
+export interface WorkspaceDeleteSessionRequest {
+  readonly sessionId: SessionId
+}
+
+/** Receipt after one archived Session's durable content is permanently deleted. */
+export interface WorkspaceDeleteSessionValue {
+  readonly deleted: true
 }
 
 /** Complete reconnect baseline for Workspace browser state. */

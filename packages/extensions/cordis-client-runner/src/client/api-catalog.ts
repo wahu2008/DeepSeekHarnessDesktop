@@ -331,6 +331,16 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'sessionId', description: 'Session to archive.' }],
       },
       {
+        signature: 'unarchiveSession(sessionId: SessionId): Promise<void>',
+        description: 'Restore a Session to Workspace grouping surfaces.',
+        parameters: [{ name: 'sessionId', description: 'Session to unarchive.' }],
+      },
+      {
+        signature: 'deleteSession(sessionId: SessionId): Promise<void>',
+        description: 'Permanently delete an archived Session\'s durable content.',
+        parameters: [{ name: 'sessionId', description: 'archived Session to delete.' }],
+      },
+      {
         signature: 'pickDirectory(): Promise<string | null>',
         description: 'Open the Host-native directory picker.',
         parameters: [],
@@ -376,6 +386,16 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: 'archiveSession(sessionId: SessionId): Promise<void>',
         description: 'Archive a Session from Workspace grouping surfaces.',
         parameters: [{ name: 'sessionId', description: 'Session to archive.' }],
+      },
+      {
+        signature: 'unarchiveSession(sessionId: SessionId): Promise<void>',
+        description: 'Restore a Session to Workspace grouping surfaces.',
+        parameters: [{ name: 'sessionId', description: 'Session to unarchive.' }],
+      },
+      {
+        signature: 'deleteSession(sessionId: SessionId): Promise<void>',
+        description: 'Permanently delete an archived Session\'s durable content. Only archived Sessions may be deleted.',
+        parameters: [{ name: 'sessionId', description: 'archived Session to delete.' }],
       },
       {
         signature: 'insertSessionBefore( workspaceId: WorkspaceId, sessionId: SessionId, beforeSessionId?: SessionId, ): Promise<WorkspaceView>',
