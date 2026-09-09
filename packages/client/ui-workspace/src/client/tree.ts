@@ -439,6 +439,7 @@ export function deriveSearchResults(
   }
 }
 
+/** Relative-time bucket names used by the workspace browser rows. */
 export type RelativeTimeUnit = 'now' | 'minutes' | 'hours' | 'days' | 'months' | 'years'
 
 /** Structured relative time: the bucket plus its magnitude (0 for 'now'). */
