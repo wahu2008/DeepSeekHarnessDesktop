@@ -182,9 +182,9 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     children: { 'settings.general.item': { kind: 'list', scope: 'root' } },
   }, GeneralSection))
-  // Desktop "About" + "Check for updates". A separate nav entry so it reads
-  // as its own page rather than a row in General. The component renders null
-  // when the shell bridge (`window.__DSH_APP__`) is absent (pure web host).
+  // Desktop "About" page. A separate nav entry so it reads as its own page
+  // rather than a row in General. The component renders null when the desktop
+  // carrier bridge (`window.dshDesktop`) is absent (pure web host).
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'about',

@@ -10,17 +10,27 @@ import {
   ipcMain,
   Menu,
   protocol,
+  shell,
   type IpcMainInvokeEvent,
 } from 'electron'
 import { resolveDesktopPaths } from './paths.ts'
+import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { DesktopProjectManager, type DesktopProjectHooks } from './project-manager.ts'
 import { DesktopHostProcess } from './host-process.ts'
-import { DESKTOP_IPC, type DesktopUpdateState } from './ipc.ts'
+import {
+  DESKTOP_IPC,
+  type DesktopAboutInfo,
+  type DesktopUpdateState,
+} from './ipc.ts'
 import { formatDesktopMessage, resolveDesktopLocale } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
 
 const SCHEME = 'dsh-app'
+// Fork extension: About-section release identity. The repo URL points at the
+// fork; the basis records the official dsh release this desktop build replays.
+const APP_REPO_URL = 'https://github.com/wahu2008/DeepSeekHarnessDesktop'
+const APP_BASIS = 'deepseek-harness dsh 0.1.5-alpha.1'
 let focusPrimaryWindow = (): void => {}
 
 function errorOf(reason: unknown, fallback: string): Error {
@@ -268,6 +278,30 @@ async function main(): Promise<void> {
   ipcMain.handle(DESKTOP_IPC.updatesInstall, async (event) => {
     assertDesktopSender(event, ['shell'])
     await updates.install()
+  })
+  // Fork extension: About-section data for the main dsh renderer. Read-only
+  // release identity and http(s) link opening, matching the AboutSection
+  // contract that the fork replays from its earlier desktop shell.
+  ipcMain.handle(DESKTOP_IPC.aboutGet, (event): DesktopAboutInfo => {
+    assertDesktopSender(event, ['app'])
+    return {
+      name: 'DeepSeek Harness Desktop',
+      version: app.getVersion(),
+      electron: process.versions.electron,
+      node: process.versions.node,
+      platform: process.platform,
+      basis: APP_BASIS,
+      repoUrl: APP_REPO_URL,
+      dshHome: resolveDshHome(),
+    }
+  })
+  ipcMain.handle(DESKTOP_IPC.aboutOpenExternal, (event, url: unknown): boolean => {
+    assertDesktopSender(event, ['app'])
+    if (typeof url !== 'string') return false
+    const target = new URL(url)
+    if (target.protocol !== 'https:' && target.protocol !== 'http:') return false
+    void shell.openExternal(target.toString())
+    return true
   })
 
   const checkAndPrompt = async (manual: boolean): Promise<void> => {

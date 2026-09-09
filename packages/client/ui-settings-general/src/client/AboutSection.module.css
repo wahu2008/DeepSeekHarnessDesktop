@@ -1,4 +1,4 @@
-/* Desktop "About" section: a title, key/value rows, and an update action. */
+/* Desktop "About" section: a title and key/value rows. */
 
 .section {
   display: flex;
@@ -45,14 +45,4 @@
 
 .link:hover {
   text-decoration: underline;
-}
-
-.actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.button {
-  align-self: flex-start;
 }

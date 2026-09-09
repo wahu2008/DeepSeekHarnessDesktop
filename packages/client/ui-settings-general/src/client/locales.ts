@@ -23,14 +23,6 @@ export const zh = {
   'about.basis': '基础版本',
   'about.dshHome': '数据目录',
   'about.repo': '项目主页',
-  'about.update.label': '检查更新',
-  'about.update.action': '检查更新',
-  'about.update.checking': '检查中…',
-  'about.update.current': '已是最新版本',
-  'about.update.available': '发现新版本',
-  'about.update.none': '尚未发布版本',
-  'about.update.download': '下载新版本',
-  'about.update.error': '检查失败',
 } satisfies Record<string, string>
 
 /** The settings namespace key union. */
@@ -59,12 +51,4 @@ export const en = {
   'about.basis': 'Base build',
   'about.dshHome': 'Data directory',
   'about.repo': 'Repository',
-  'about.update.label': 'Check for updates',
-  'about.update.action': 'Check for updates',
-  'about.update.checking': 'Checking…',
-  'about.update.current': 'You are up to date',
-  'about.update.available': 'A new version is available',
-  'about.update.none': 'No release published yet',
-  'about.update.download': 'Download update',
-  'about.update.error': 'Update check failed',
 } satisfies Record<SettingsKey, string>

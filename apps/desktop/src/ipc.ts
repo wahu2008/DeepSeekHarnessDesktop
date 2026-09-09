@@ -13,7 +13,28 @@ export const DESKTOP_IPC = {
   updatesCheck: 'dsh-desktop:updates-check',
   updatesInstall: 'dsh-desktop:updates-install',
   updatesState: 'dsh-desktop:updates-state',
+  // Fork extension: read-only "About" data for the main renderer. The main
+  // dsh renderer upstream receives only the desktop protocol marker; this fork
+  // additionally lets it read release identity and open http(s) links, keeping
+  // the marker's read-only posture (no plugin mutation, no filesystem).
+  aboutGet: 'dsh-desktop:about-get',
+  aboutOpenExternal: 'dsh-desktop:about-open-external',
 } as const
+
+/**
+ * Desktop release identity rendered by the main-window "About" settings
+ * section. Values are static strings resolved in the main process.
+ */
+export interface DesktopAboutInfo {
+  readonly name: string
+  readonly version: string
+  readonly electron: string
+  readonly node: string
+  readonly platform: string
+  readonly basis: string
+  readonly repoUrl: string
+  readonly dshHome: string
+}
 
 /** Desktop release update state rendered by desktop-owned UI. */
 export interface DesktopUpdateState {
