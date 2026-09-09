@@ -152,13 +152,13 @@ jobs:
           node-version: ${{ matrix.node }}
 
       - name: Download the original platform build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: system-compat-${{ matrix.platform }}
           path: native/system/packages
 
       - name: Download independent syscall test oracle
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: system-oracle-${{ matrix.platform }}
           path: native/system/test/bin
