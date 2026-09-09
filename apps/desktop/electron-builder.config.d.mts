@@ -1,6 +1,7 @@
 /** Electron-builder fields asserted by the Desktop release tests. */
 export interface DesktopElectronBuilderConfig {
   readonly appId: string
+  readonly electronDist?: string
   readonly directories: {
     readonly output: string
   }
@@ -12,6 +13,18 @@ export interface DesktopElectronBuilderConfig {
     readonly identity: string | undefined
     readonly forceCodeSigning: boolean
     readonly notarize: boolean
+  }
+  readonly win: {
+    readonly forceCodeSigning: boolean
+    readonly signtoolOptions?: {
+      readonly sign: (configuration: {
+        readonly path: string
+        readonly hash: string
+        readonly isNest: boolean
+      }) => Promise<void>
+      readonly signingHashAlgorithms: readonly ['sha256']
+    }
+    readonly target: readonly ['nsis']
   }
   readonly dmg: {
     readonly sign: boolean

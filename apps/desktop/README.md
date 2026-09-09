@@ -143,6 +143,25 @@ Insert and unlock the token before packaging. The electron-builder hook passes e
 
 The PIN cannot contain `]`, a quote, or a line break because those characters delimit the SafeNet `/kc` value or its CMD argument. The CMD disables delayed expansion so a PIN containing `!` reaches SafeNet unchanged. Packaging withholds every `DSH_DESKTOP_WINDOWS_*` field from build and seed-preparation subprocesses, gives electron-builder only the four configured inputs, gives the signing CMD only the validated signing fields in an otherwise scrubbed environment, clears those fields before SignTool starts, and redacts SignTool diagnostics. SafeNet still requires the PIN in the SignTool process command line. Inject it as an ephemeral secret only on a controlled self-hosted Windows runner with the physical token attached; never commit it, put it in `.env`, or persist it as a Windows user or system environment variable.
 
+### Fork: local Windows packaging without release credentials
+
+This fork relaxes the upstream signing contract so a Windows installer can be built locally without the SafeNet EV token. When none of the four `DSH_DESKTOP_WINDOWS_*` variables is set, electron-builder emits an unsigned NSIS package (`win.forceCodeSigning` is disabled and no signer is installed); Windows SmartScreen will warn about the publisher. Setting any one of the four variables keeps the upstream requirement that all four are present, so a configured signing identity is never silently downgraded to an unsigned artifact.
+
+```powershell
+$env:DSH_DESKTOP_APP_ID = 'com.example.dsh-desktop'
+$env:DOWNLOAD_TEST_ORIGIN = 'https://desktop-updates.example.com'
+pnpm run package:desktop:win:x64
+```
+
+An optional `DSH_DESKTOP_ELECTRON_DIST` points electron-builder at an already-unpacked Electron distribution so Windows packaging copies it into the app directory instead of extracting the zip and renaming the staging directory. Local builds without an antivirus exclusion can hit an `EPERM` on that rename while antivirus scans the freshly written executables; copying from an unpacked distribution avoids it:
+
+```powershell
+$env:DSH_DESKTOP_ELECTRON_DIST = 'C:\path\to\electron-v44.0.0-win32-x64-unpacked'
+pnpm run package:desktop:win:x64
+```
+
+Release automation leaves the variable unset and keeps the upstream zip-extraction path.
+
 Create a runnable application directory instead of an installer by using the matching `:dir` command, such as:
 
 ```sh

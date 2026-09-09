@@ -143,6 +143,25 @@ pnpm run package:desktop:win:x64
 
 PIN 不能包含 `]`、引号或换行，因为这些字符用于分隔 SafeNet `/kc` 值或对应的 CMD 参数。CMD 会禁用延迟展开，因此包含 `!` 的 PIN 可以原样到达 SafeNet。打包流程不会把任何 `DSH_DESKTOP_WINDOWS_*` 字段传给构建与 seed 准备子进程；它只向 electron-builder 提供四个配置输入，在其他字段已经清理的环境中只向签名 CMD 提供经过校验的签名字段，在 SignTool 启动前清除这些字段，并遮盖 SignTool 诊断。SafeNet 仍要求 PIN 出现在 SignTool 进程命令行中。只能在连接了物理 Token 的受控 self-hosted Windows runner 上把它注入为临时 secret；绝不能提交该值、把它写进 `.env`，或持久保存为 Windows 用户或系统环境变量。
 
+### Fork：无发布凭据的本地 Windows 打包
+
+本 fork 放宽了上游的签名约束，使没有 SafeNet EV Token 也能在本地构建 Windows 安装包。当四个 `DSH_DESKTOP_WINDOWS_*` 变量都未设置时，electron-builder 会生成未签名的 NSIS 安装包（`win.forceCodeSigning` 被禁用且不安装签名器）；Windows SmartScreen 会就发布者给出警告。只要设置了四个变量中的任何一个，就仍要求四个全部提供，因此已配置的签名身份绝不会被静默降级为未签名产物。
+
+```powershell
+$env:DSH_DESKTOP_APP_ID = 'com.example.dsh-desktop'
+$env:DOWNLOAD_TEST_ORIGIN = 'https://desktop-updates.example.com'
+pnpm run package:desktop:win:x64
+```
+
+可选的 `DSH_DESKTOP_ELECTRON_DIST` 让 electron-builder 指向已解压的 Electron 发行版，Windows 打包会把它复制到应用目录，而不是解压 zip 再重命名暂存目录。未配置杀毒软件排除的本地构建可能会在该重命名期间因杀毒软件扫描刚写入的可执行文件而遇到 `EPERM`；从已解压发行版复制可以避免此问题：
+
+```powershell
+$env:DSH_DESKTOP_ELECTRON_DIST = 'C:\path\to\electron-v44.0.0-win32-x64-unpacked'
+pnpm run package:desktop:win:x64
+```
+
+发布自动化不设置该变量，并保留上游的 zip 解压路径。
+
 使用对应的 `:dir` 命令可以生成可直接运行的应用目录，而不是安装包，例如：
 
 ```sh

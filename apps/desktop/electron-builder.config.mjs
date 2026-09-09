@@ -12,6 +12,14 @@ import {
 import { resolveDesktopAutoUpdateConfig } from './scripts/desktop-auto-update-environment.mjs'
 import { desktopTargetBuildPaths } from './scripts/desktop-build-paths.mjs'
 
+/** Fork extension: environment variables that select Windows release signing. */
+const WINDOWS_SIGNING_ENV_NAMES = [
+  'DSH_DESKTOP_WINDOWS_CER_FILE',
+  'DSH_DESKTOP_WINDOWS_KEY_CONTAINER',
+  'DSH_DESKTOP_WINDOWS_SIGNTOOL',
+  'DSH_DESKTOP_WINDOWS_TOKEN_PIN',
+]
+
 /**
  * Create electron-builder configuration from one release environment.
  * @param {NodeJS.ProcessEnv} env - Packaging environment.
@@ -32,7 +40,15 @@ export function createElectronBuilderConfig(
   const packagesWindows = targetPlatform === 'win32'
   const macOSSigning = packagesMacOS ? resolveMacOSSigningEnvironment(env) : undefined
   if (packagesMacOS) resolveMacOSNotarizationEnvironment(env)
-  const windowsSigner = packagesWindows
+  // Fork behavior: Windows release signing is optional. When none of the four
+  // DSH_DESKTOP_WINDOWS_* credentials is present the target is packaged
+  // unsigned (forceCodeSigning disabled, no SafeNet signer). Setting any one of
+  // them keeps the upstream contract: all four are required and validation
+  // throws for a partial set, so a configured signing identity is never
+  // silently downgraded to an unsigned artifact.
+  const windowsSigningRequested = packagesWindows && WINDOWS_SIGNING_ENV_NAMES
+    .some((name) => env[name] !== undefined && env[name] !== '')
+  const windowsSigner = windowsSigningRequested
     ? createWindowsTokenSigner({
         certificateFile: env.DSH_DESKTOP_WINDOWS_CER_FILE,
         signTool: env.DSH_DESKTOP_WINDOWS_SIGNTOOL,
@@ -45,10 +61,18 @@ export function createElectronBuilderConfig(
   }
   const update = resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
   const buildPaths = desktopTargetBuildPaths(update.target)
+  // Fork extension: DSH_DESKTOP_ELECTRON_DIST points electron-builder at an
+  // already-unpacked Electron distribution so Windows packaging copies it into
+  // the app directory instead of extracting the zip and renaming the staging
+  // directory. Local Windows builds without an AV exclusion can hit EPERM on
+  // that rename while the AV scans freshly written executables. Unset by
+  // default, so release automation keeps the upstream zip-extract path.
+  const electronDist = env.DSH_DESKTOP_ELECTRON_DIST?.trim()
   return {
     appId,
     productName: 'DeepSeek Harness',
     artifactName: 'deepseek-harness-${version}-${os}-${arch}.${ext}',
+    ...(electronDist === undefined || electronDist === '' ? {} : { electronDist }),
     directories: { output: buildPaths.artifacts },
     asar: true,
     files: [
@@ -86,11 +110,15 @@ export function createElectronBuilderConfig(
       )
     },
     win: {
-      forceCodeSigning: true,
-      signtoolOptions: {
-        sign: windowsSigner,
-        signingHashAlgorithms: ['sha256'],
-      },
+      forceCodeSigning: windowsSigner !== undefined,
+      ...(windowsSigner !== undefined
+        ? {
+            signtoolOptions: {
+              sign: windowsSigner,
+              signingHashAlgorithms: ['sha256'],
+            },
+          }
+        : {}),
       target: ['nsis'],
     },
     linux: {

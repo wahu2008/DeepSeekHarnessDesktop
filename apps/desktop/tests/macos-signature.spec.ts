@@ -64,12 +64,52 @@ describe('desktop macOS release signature', () => {
     expect(typeof config.artifactBuildCompleted).toBe('function')
   })
 
-  it('validates Windows signing without requiring macOS identifiers for a Windows target', async () => {
+  it('allows an unsigned Windows target when no signing credentials are configured (fork packaging)', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
+    const config = createElectronBuilderConfig({
+      DSH_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.DSH_DESKTOP_APP_ID,
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DOWNLOAD_TEST_ORIGIN: RELEASE_ENVIRONMENT.DOWNLOAD_TEST_ORIGIN,
+    }, 'win32')
+    expect(config).toMatchObject({
+      win: {
+        forceCodeSigning: false,
+      },
+    })
+    expect(config.win?.signtoolOptions).toBeUndefined()
+    expect(config.electronDist).toBeUndefined()
+  })
+
+  it('points electron-builder at an unpacked Electron distribution when configured (fork packaging)', async () => {
+    const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
+    const config = createElectronBuilderConfig({
+      DSH_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.DSH_DESKTOP_APP_ID,
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DOWNLOAD_TEST_ORIGIN: RELEASE_ENVIRONMENT.DOWNLOAD_TEST_ORIGIN,
+      DSH_DESKTOP_ELECTRON_DIST: 'C:\\electron-v44.0.0-win32-x64-unpacked',
+    }, 'win32')
+    expect(config.electronDist).toBe('C:\\electron-v44.0.0-win32-x64-unpacked')
+  })
+
+  it('requires the full Windows signing set once any signing credential is configured', async () => {
+    const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
+    // The signer resolves the certificate first, so any partial set that omits
+    // the certificate is rejected before later fields are inspected.
     expect(() => createElectronBuilderConfig({
       DSH_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.DSH_DESKTOP_APP_ID,
       DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DOWNLOAD_TEST_ORIGIN: RELEASE_ENVIRONMENT.DOWNLOAD_TEST_ORIGIN,
+      DSH_DESKTOP_WINDOWS_SIGNTOOL: process.execPath,
     }, 'win32')).toThrow(/DSH_DESKTOP_WINDOWS_CER_FILE/u)
+    // A partial set that names an unusable certificate must not be silently
+    // downgraded to an unsigned package either.
+    expect(() => createElectronBuilderConfig({
+      DSH_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.DSH_DESKTOP_APP_ID,
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DOWNLOAD_TEST_ORIGIN: RELEASE_ENVIRONMENT.DOWNLOAD_TEST_ORIGIN,
+      DSH_DESKTOP_WINDOWS_CER_FILE: 'C:\\release\\missing-server.cer',
+      DSH_DESKTOP_WINDOWS_SIGNTOOL: process.execPath,
+    }, 'win32')).toThrow(/Windows code-signing certificate file is missing or invalid/u)
   })
 
   it('accepts the configured authority and team', () => {
