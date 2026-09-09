@@ -48,7 +48,7 @@ jobs:
       ci: ${{ steps.matrix.outputs.ci }}
       compatibility: ${{ steps.matrix.outputs.compatibility }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: matrix
         run: |
@@ -63,7 +63,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.matrix.outputs.ci) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v4
         with:
@@ -145,7 +145,7 @@ jobs:
         include: ${{ fromJson(needs.matrix.outputs.compatibility) }}
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
