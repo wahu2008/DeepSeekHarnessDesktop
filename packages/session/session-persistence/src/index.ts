@@ -210,8 +210,8 @@ export abstract class SessionPersistence extends Service {
    * reports a storage fault rather than silently leaking the artifact.
    * Callers must treat a rejected `delete` as "the content could not be
    * removed" — never mistake it for the session being gone from storage.
-   * @param id - the persisted session to delete.
-   * @param options - optional cancellation.
+   * @param _id - the persisted session to delete.
+   * @param _options - optional cancellation.
    */
   delete(_id: SessionId, _options?: SessionPersistenceDeleteOptions): Promise<void> {
     return Promise.reject(

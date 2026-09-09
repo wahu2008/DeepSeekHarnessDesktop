@@ -408,6 +408,18 @@ abstract stat(id: SessionId, options?: SessionPersistenceStatOptions): Promise<S
  * @returns one snapshot per stored session.
  */
 abstract list(options?: SessionPersistenceListOptions): Promise<readonly SessionPersistenceSnapshot[]>
+
+/**
+ * Permanently delete a session's durable content. Backends that own a
+ * per-session artifact override it to remove that artifact (and empty
+ * parent stores). The default rejects so a backend that cannot delete
+ * reports a storage fault rather than silently leaking the artifact.
+ * Callers must treat a rejected `delete` as "the content could not be
+ * removed" — never mistake it for the session being gone from storage.
+ * @param _id - the persisted session to delete.
+ * @param _options - optional cancellation.
+ */
+delete(_id: SessionId, _options?: SessionPersistenceDeleteOptions): Promise<void>
 ```
 
 Types: [SessionId](core.zh.md)
