@@ -146,6 +146,22 @@ class FakeWorkspaces implements IWorkspaces {
     this.archiveCalls.push(sessionId)
     return this.onArchive(sessionId)
   }
+
+  unarchiveSession(sessionId: SessionId): Promise<void> {
+    this.list.update(state => ({
+      ...state,
+      archivedSessionIds: state.archivedSessionIds.filter(id => id !== sessionId),
+    }))
+    return Promise.resolve()
+  }
+
+  deleteSession(sessionId: SessionId): Promise<void> {
+    this.list.update(state => ({
+      ...state,
+      archivedSessionIds: state.archivedSessionIds.filter(id => id !== sessionId),
+    }))
+    return Promise.resolve()
+  }
 }
 
 const listing: DirectoryListing = {
@@ -420,6 +436,18 @@ describe('UiWorkspaceService', () => {
     b.workspaces.onArchive = () => Promise.reject(new Error('archive rejected'))
     await expect(b.uiWorkspace.archiveSession(idle)).rejects.toThrow('archive rejected')
     expect(b.workspaces.archiveCalls).toEqual([idle, idle])
+  })
+
+  it('forwards unarchive and delete commands to the workspaces face', async () => {
+    const archived = sid('archived')
+    const b = bench({
+      workspaces: workspaceState([], [archived]),
+    })
+
+    await b.uiWorkspace.unarchiveSession(archived)
+    expect(b.workspaces.list.getSnapshot().archivedSessionIds).toEqual([])
+    await b.uiWorkspace.deleteSession(sid('gone'))
+    expect(b.workspaces.list.getSnapshot().archivedSessionIds).toEqual([])
   })
 
   it('passes directory operations to the Host and preserves structured browse failures', async () => {

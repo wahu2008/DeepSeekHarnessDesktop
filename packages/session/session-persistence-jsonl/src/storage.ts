@@ -458,6 +458,16 @@ export class JsonlBackendTracker {
   }
 
   /**
+   * Whether this process holds an active write claim or pending entry for one
+   * session — deleting under either would corrupt an in-flight write.
+   * @param id - the session to test.
+   * @returns true while the id is claimed as a writer or still pending.
+   */
+  isActive(id: SessionId): boolean {
+    return this.writers.has(id) || this.pending.has(id)
+  }
+
+  /**
    * Iterate the pending sessions for listing.
    * @returns the pending entries, keyed by session id.
    */

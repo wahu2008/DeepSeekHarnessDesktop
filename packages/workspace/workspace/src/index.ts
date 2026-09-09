@@ -51,6 +51,21 @@ export class WorkspaceUnknownSessionError extends Error {
   }
 }
 
+/**
+ * A permanent-delete request named a session that is not in the registry-global
+ * archive set. Archive management only deletes archived sessions, so a live or
+ * merely hidden-but-unarchived session is rejected rather than silently removed.
+ */
+export class WorkspaceSessionNotArchivedError extends Error {
+  /**
+   * @param sessionId - The session that was not archived.
+   */
+  constructor(readonly sessionId: SessionId) {
+    super(`cannot delete session '${sessionId}': only archived sessions may be permanently deleted`)
+    this.name = 'WorkspaceSessionNotArchivedError'
+  }
+}
+
 /** A workspace reorder named a source or anchor absent from the durable registry order. */
 export class WorkspaceOrderInvalidError extends Error {
   /**
@@ -81,6 +96,11 @@ const sameIds = (left: readonly WorkspaceId[], right: readonly WorkspaceId[]): b
 const compareHeaders = (left: SessionHeader, right: SessionHeader): number =>
   right.createdAt - left.createdAt || String(left.id).localeCompare(String(right.id))
 
+/** Result of one cached cwd → canonical-directory resolution. */
+type CwdResolution =
+  | { kind: 'ok'; path: string }
+  | { kind: 'invalid'; reason: string }
+
 /**
  * Durable workspace registry. Startup waits for `sessionPersistence`, builds
  * one canonical-cwd header index, and completes the one-time history
@@ -98,6 +118,13 @@ export class WorkspaceRegistry extends Service {
   private readonly headers = new Map<SessionId, SessionHeader>()
   private readonly sessionPaths = new Map<SessionId, string>()
   private readonly invalidSessionPaths = new Map<SessionId, string>()
+  /**
+   * Per-cwd canonical-path resolution cache. Most sessions in one workspace
+   * share a cwd, so the realpath + is-directory stat is computed once per
+   * DISTINCT cwd instead of once per session — a cold-start win that scales
+   * with project-directory count, not the (much larger) session count.
+   */
+  private readonly cwdResolutionCache = new Map<string, CwdResolution>()
   private operationTail: Promise<void> = Promise.resolve()
 
   private readonly host: WorkspaceEntityHost = {
@@ -251,6 +278,81 @@ export class WorkspaceRegistry extends Service {
       const state = this.requireState()
       await this.setState({ ...state, archivedSessionIds: [...state.archivedSessionIds, sessionId] })
     })
+  }
+
+  /**
+   * Remove one session from the archived set durably. The session keeps its
+   * workspace accounting slot, so unarchiving restores its original grouping
+   * position. An id that is not archived resolves without writing.
+   * @param sessionId - The session to unarchive.
+   * @returns resolution after durability.
+   */
+  unarchiveSession(sessionId: SessionId): Promise<void> {
+    return this.enqueueOperation(async () => {
+      const state = this.requireState()
+      if (!state.archivedSessionIds.includes(sessionId)) return
+      await this.setState({
+        ...state,
+        archivedSessionIds: state.archivedSessionIds.filter(id => id !== sessionId),
+      })
+    })
+  }
+
+  /**
+   * Permanently delete an archived session's durable content. Accepts only an
+   * archived session, removes the id from the archived set, detaches it from any
+   * workspace accounting slot, and deletes the persisted log through
+   * `sessionPersistence.delete`. Content-addressed attachments are NOT removed.
+   * A backend that cannot delete reports a storage fault but the registry still
+   * drops the archive/accounting entries.
+   * @param sessionId - The archived session to delete permanently.
+   * @returns resolution after the registry writes and best-effort backend delete.
+   * @throws {@link WorkspaceSessionNotArchivedError} when not archived.
+   */
+  deleteSession(sessionId: SessionId): Promise<void> {
+    return this.enqueueOperation(async () => {
+      const state = this.requireState()
+      if (!state.archivedSessionIds.includes(sessionId)) {
+        throw new WorkspaceSessionNotArchivedError(sessionId)
+      }
+      for (const entity of this.entities.values()) {
+        if (entity.sessionIds.includes(sessionId)) {
+          await entity.detachSession(sessionId)
+        }
+      }
+      await this.deletePersistedSession(sessionId)
+      const next = this.requireState()
+      const nextArchived = next.archivedSessionIds.filter(id => id !== sessionId)
+      if (nextArchived.length !== next.archivedSessionIds.length) {
+        await this.setState({ ...next, archivedSessionIds: nextArchived })
+      }
+    })
+  }
+
+  /**
+   * Best-effort delete of one session's persisted content. A backend that does
+   * not expose `delete` (unsupported) or rejects is treated as a storage fault:
+   * the registry still drops the archive/accounting entries so the session
+   * leaves the UI, but the durable content may remain. Callers must never
+   * mistake a rejected `delete` for the session being gone from the registry.
+   * @param sessionId - the archived session being deleted.
+   */
+  private async deletePersistedSession(sessionId: SessionId): Promise<void> {
+    const del = this.ctx.sessionPersistence.delete
+    if (typeof del !== 'function') {
+      this.ctx.logger.warn(
+        `workspace: session persistence does not support deleting '${sessionId}'; durable content was retained`,
+      )
+      return
+    }
+    try {
+      await del.call(this.ctx.sessionPersistence, sessionId)
+    } catch (error) {
+      /* v8 ignore next -- only reachable when the backend rejects a delete or throws synchronously. */
+      this.ctx.logger.warn(
+        `workspace: could not delete persisted session '${sessionId}': ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
   }
 
   /**
@@ -561,11 +663,31 @@ export class WorkspaceRegistry extends Service {
     this.headers.clear()
     this.sessionPaths.clear()
     this.invalidSessionPaths.clear()
+    this.cwdResolutionCache.clear()
     await this.indexHeaders(headers)
   }
 
   private async indexHeaders(headers: readonly SessionHeader[]): Promise<void> {
     for (const header of headers) await this.indexHeader(header)
+  }
+
+  /** Resolve one cwd to its canonical directory, memoized per distinct cwd. */
+  private async resolveCwd(cwd: string): Promise<CwdResolution> {
+    const cached = this.cwdResolutionCache.get(cwd)
+    if (cached !== undefined) return cached
+    let resolved: CwdResolution
+    try {
+      const path = await realpathNormalize(cwd)
+      if (!(await stat(path)).isDirectory()) {
+        resolved = { kind: 'invalid', reason: `cwd '${cwd}' is not a directory` }
+      } else {
+        resolved = { kind: 'ok', path }
+      }
+    } catch {
+      resolved = { kind: 'invalid', reason: `cwd '${cwd}' does not resolve` }
+    }
+    this.cwdResolutionCache.set(cwd, resolved)
+    return resolved
   }
 
   private async indexHeader(header: SessionHeader): Promise<void> {
@@ -575,17 +697,13 @@ export class WorkspaceRegistry extends Service {
       this.invalidSessionPaths.set(header.id, 'header has no cwd')
       return
     }
-    try {
-      const path = await realpathNormalize(header.cwd)
-      if (!(await stat(path)).isDirectory()) {
-        this.invalidSessionPaths.set(header.id, `cwd '${header.cwd}' is not a directory`)
-        return
-      }
-      this.sessionPaths.set(header.id, path)
-      this.invalidSessionPaths.delete(header.id)
-    } catch {
-      this.invalidSessionPaths.set(header.id, `cwd '${header.cwd}' does not resolve`)
+    const resolved = await this.resolveCwd(header.cwd)
+    if (resolved.kind === 'invalid') {
+      this.invalidSessionPaths.set(header.id, resolved.reason)
+      return
     }
+    this.sessionPaths.set(header.id, resolved.path)
+    this.invalidSessionPaths.delete(header.id)
   }
 
   /** Every stored session's header, projected from the persistence snapshot listing. */

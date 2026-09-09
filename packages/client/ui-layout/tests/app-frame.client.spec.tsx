@@ -101,7 +101,7 @@ function mountFrame(windowWidth = frameWidth) {
       useResource={useResource}
       useWorkspaces={((sel: (s: WorkspaceSnapshot) => unknown) => sel(workspaceState)) as AppFrameProps['useWorkspaces']}
       SessionProvider={SessionProviderStub}
-      t={key => key === 'brand.localBuild' ? 'DSH Local Build' : key}
+      t={key => key === 'brand.localBuild' ? 'DSH WAHU版' : key}
     />
   )
   const utils = render(element())
@@ -181,7 +181,7 @@ afterEach(() => {
 describe('AppFrame', () => {
   it('localizes the product title without a configured build title', () => {
     mountFrame()
-    expect(document.title).toBe('DSH Local Build')
+    expect(document.title).toBe('DSH WAHU版')
   })
 
   it('follows the selected durable Session title', () => {

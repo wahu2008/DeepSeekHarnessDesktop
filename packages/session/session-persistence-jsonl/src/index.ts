@@ -26,6 +26,7 @@ import {
   type SessionAccess, type SessionHandle,
   type SessionHandleReadResult,
   type SessionLocation, type SessionPersistenceCreateOptions,
+  type SessionPersistenceDeleteOptions,
   type SessionPersistenceListOptions, type SessionPersistenceOpenOptions,
   type SessionPersistenceSnapshot, type SessionPersistenceStatOptions,
   type SessionPersistenceRevision as PersistenceRevision,
@@ -487,6 +488,41 @@ class JsonlSessionPersistence extends SessionPersistence {
     }
     signal?.throwIfAborted()
     return snapshots
+  }
+
+  /**
+   * Permanently delete one stored session: remove its per-session directory
+   * (the current generation plus any backend-owned siblings) and clean up a
+   * now-empty project directory. The artifact is located the same way reads
+   * resolve an unknown cwd — a scan of every project directory. A session with
+   * no stored artifact is a no-op. Content-addressed attachments referenced by
+   * the session are NOT removed. A session with an active write lease is
+   * refused: deleting under a live writer would corrupt its next flush.
+   * @param id - the persisted session to delete.
+   * @param options - optional cancellation.
+   */
+  override async delete(id: SessionId, options?: SessionPersistenceDeleteOptions): Promise<void> {
+    const signal = options?.signal
+    signal?.throwIfAborted()
+    await this.ensureRootEncoding()
+    signal?.throwIfAborted()
+    const selected = await this.findLog(id, signal)
+    if (selected === undefined) return
+    signal?.throwIfAborted()
+    if (this.tracker.isActive(id)) {
+      throw new Error(`session '${id}' has an active writer; refuse to delete under a live write handle`)
+    }
+    const sessionDir = dirname(selected.sourcePath)
+    const projectDir = dirname(sessionDir)
+    await rm(sessionDir, { recursive: true, force: true })
+    signal?.throwIfAborted()
+    // Best-effort cleanup of a project directory that held only this session.
+    try {
+      const entries = await readdir(projectDir)
+      if (entries.length === 0) await rm(projectDir, { recursive: true, force: true })
+    } catch {
+      /* the project directory is left in place; only removal of the session is required */
+    }
   }
 
   // --- handle-facing storage internals (package-private via the handle class below) ---

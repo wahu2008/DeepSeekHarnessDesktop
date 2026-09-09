@@ -53,7 +53,8 @@ async function harness(options: HarnessOptions = {}) {
     listed.map(header => ({ header, revision: SessionPersistenceRevision(`rev-${header.id}`) })))
   const open = vi.fn(() => { throw new Error('event bodies must not be opened') })
   const stat = vi.fn(() => { throw new Error('per-session stat must not be needed') })
-  ctx.provide('sessionPersistence', { list, open, stat } as never)
+  const deleted = vi.fn(async (_id: SessionId, _signal?: AbortSignal) => {})
+  ctx.provide('sessionPersistence', { list, open, stat, delete: deleted } as never)
 
   if (options.sessionStore === true) {
     await ctx.plugin(SessionStore)
@@ -80,6 +81,7 @@ async function harness(options: HarnessOptions = {}) {
     list,
     open,
     stat,
+    deleted,
     setSessions: (headers: SessionHeader[]) => { listed = headers },
   }
 }
@@ -971,5 +973,60 @@ describe('registry-global session archive', () => {
     )
     const upgraded = await harness({ pool: legacy })
     expect(upgraded.registry.archivedSessionIds).toEqual([])
+  })
+
+  it('unarchives idempotently and preserves the workspace accounting slot', async () => {
+    const dir = await makeDir('unarchive-home')
+    const result = await harness({ sessions: [header('kept', dir, 100), header('gone', dir, 200)] })
+    const workspace = result.registry.list()[0]!
+    await result.registry.archiveSession(SessionId('gone'))
+    expect(result.registry.archivedSessionIds).toEqual(['gone'])
+
+    await result.registry.unarchiveSession(SessionId('gone'))
+    expect(result.registry.archivedSessionIds).toEqual([])
+    expect(workspace.sessionIds).toContain('gone')
+    expect(storedState(result.pool).archivedSessionIds).toEqual([])
+
+    // Unarchiving an id already out of the set is a no-op and rewrites nothing.
+    const writes = result.changes.filter(change => change.table === '').length
+    await result.registry.unarchiveSession(SessionId('gone'))
+    expect(result.changes.filter(change => change.table === '').length).toBe(writes)
+  })
+
+  it('deletes only an archived session, drops its accounting slot, and deletes the persisted log', async () => {
+    const dir = await makeDir('delete-home')
+    const result = await harness({ sessions: [header('keep', dir, 100), header('gone', dir, 200)] })
+    const workspace = result.registry.list()[0]!
+    await result.registry.archiveSession(SessionId('gone'))
+    await result.registry.deleteSession(SessionId('gone'))
+
+    expect(result.deleted).toHaveBeenCalledWith(SessionId('gone'))
+    expect(result.registry.archivedSessionIds).toEqual([])
+    expect(workspace.sessionIds).toEqual(['keep'])
+    expect(storedState(result.pool).archivedSessionIds).toEqual([])
+  })
+
+  it('rejects a permanent delete for a session that is not archived', async () => {
+    const dir = await makeDir('delete-strays')
+    const result = await harness({ sessions: [header('live', dir, 100)] })
+    await expect(result.registry.deleteSession(SessionId('live')))
+      .rejects.toThrow(/only archived sessions may be permanently deleted/)
+    expect(result.deleted).not.toHaveBeenCalled()
+    expect(storedState(result.pool).archivedSessionIds).toEqual([])
+  })
+
+  it('still drops the archive and accounting entries when the backend delete reports a storage fault', async () => {
+    const dir = await makeDir('delete-fault')
+    const result = await harness({ sessions: [header('gone', dir, 200)] })
+    const workspace = result.registry.list()[0]!
+    await result.registry.archiveSession(SessionId('gone'))
+    result.deleted.mockRejectedValueOnce(new Error('backend storage fault'))
+
+    // The registry tolerates the backend failure but still removes the archive
+    // and accounting entries, so the session is gone from the UI.
+    await result.registry.deleteSession(SessionId('gone'))
+    expect(result.registry.archivedSessionIds).toEqual([])
+    expect(workspace.sessionIds).toEqual([])
+    expect(storedState(result.pool).archivedSessionIds).toEqual([])
   })
 })

@@ -106,6 +106,12 @@ export interface SessionPersistenceListOptions {
   readonly signal?: AbortSignal
 }
 
+/** Options for {@link SessionPersistence.delete}. */
+export interface SessionPersistenceDeleteOptions {
+  /** Optional cancellation for backend delete work. */
+  readonly signal?: AbortSignal
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     sessionPersistence: SessionPersistence
@@ -196,6 +202,22 @@ export abstract class SessionPersistence extends Service {
    * @returns one snapshot per stored session.
    */
   abstract list(options?: SessionPersistenceListOptions): Promise<readonly SessionPersistenceSnapshot[]>
+
+  /**
+   * Permanently delete a session's durable content. Backends that own a
+   * per-session artifact override it to remove that artifact (and empty
+   * parent stores). The default rejects so a backend that cannot delete
+   * reports a storage fault rather than silently leaking the artifact.
+   * Callers must treat a rejected `delete` as "the content could not be
+   * removed" — never mistake it for the session being gone from storage.
+   * @param id - the persisted session to delete.
+   * @param options - optional cancellation.
+   */
+  delete(_id: SessionId, _options?: SessionPersistenceDeleteOptions): Promise<void> {
+    return Promise.reject(
+      new Error('this session persistence backend does not support deleting a session'),
+    )
+  }
 }
 
 export default SessionPersistence

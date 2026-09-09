@@ -25,6 +25,7 @@ import type {
 } from './shell-contract.ts'
 import { SettingsRoot } from './SettingsRoot.tsx'
 import { CloseLabel, HeaderContent, TriggerContent } from './chrome.tsx'
+import { AboutSection } from './AboutSection.tsx'
 import { GeneralSection } from './GeneralSection.tsx'
 import { SettingsDocumentAction } from './SettingsDocumentAction.tsx'
 import type { SettingsDocumentActionInjected } from './SettingsDocumentAction.tsx'
@@ -34,6 +35,7 @@ import { en, zh, type SettingsKey } from './locales.ts'
 export type {
   CloseLabelProps, HeaderContentProps, TriggerContentProps,
 } from './chrome.tsx'
+export type { AboutSectionComponentProps } from './AboutSection.tsx'
 export type {
   GeneralSectionComponentProps,
 } from './GeneralSection.tsx'
@@ -180,4 +182,14 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     children: { 'settings.general.item': { kind: 'list', scope: 'root' } },
   }, GeneralSection))
+  // Desktop "About" + "Check for updates". A separate nav entry so it reads
+  // as its own page rather than a row in General. The component renders null
+  // when the shell bridge (`window.__DSH_APP__`) is absent (pure web host).
+  ctx.slots.inject('settings.section', () => ctx.slots.register({
+    name: 'settings.section',
+    id: 'about',
+    order: 100,
+    label: () => t('about.nav'),
+    locale: NS,
+  }, AboutSection))
 }
