@@ -11,6 +11,10 @@ import {
 } from './scripts/windows-sign.mjs'
 import { resolveDesktopAutoUpdateConfig } from './scripts/desktop-auto-update-environment.mjs'
 import { desktopTargetBuildPaths } from './scripts/desktop-build-paths.mjs'
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+const APP_ROOT = resolve(import.meta.dirname)
 
 /** Fork extension: environment variables that select Windows release signing. */
 const WINDOWS_SIGNING_ENV_NAMES = [
@@ -68,11 +72,18 @@ export function createElectronBuilderConfig(
   // that rename while the AV scans freshly written executables. Unset by
   // default, so release automation keeps the upstream zip-extract path.
   const electronDist = env.DSH_DESKTOP_ELECTRON_DIST?.trim()
+  // Fork extension: the fork's earlier desktop shell shipped this application
+  // icon; official v0.1.5 carries no icon resource, so packaging would fall back
+  // to the default Electron icon. Applied only when the file is present so an
+  // official checkout without it keeps upstream behavior.
+  const applicationIcon = resolve(APP_ROOT, 'build', 'icon.ico')
+  const hasApplicationIcon = existsSync(applicationIcon)
   return {
     appId,
     productName: 'DeepSeek Harness',
     artifactName: 'deepseek-harness-${version}-${os}-${arch}.${ext}',
     ...(electronDist === undefined || electronDist === '' ? {} : { electronDist }),
+    ...(hasApplicationIcon ? { icon: applicationIcon } : {}),
     directories: { output: buildPaths.artifacts },
     asar: true,
     files: [
@@ -129,6 +140,7 @@ export function createElectronBuilderConfig(
       oneClick: false,
       allowToChangeInstallationDirectory: true,
       differentialPackage: true,
+      ...(hasApplicationIcon ? { installerIcon: applicationIcon, uninstallerIcon: applicationIcon } : {}),
     },
     publish: [{ provider: 'generic', url: update.publicUrl }],
   }

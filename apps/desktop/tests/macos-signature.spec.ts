@@ -91,6 +91,18 @@ describe('desktop macOS release signature', () => {
     expect(config.electronDist).toBe('C:\\electron-v44.0.0-win32-x64-unpacked')
   })
 
+  it('packages the fork application icon that ships in the desktop build directory (fork packaging)', async () => {
+    const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
+    const config = createElectronBuilderConfig({
+      DSH_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.DSH_DESKTOP_APP_ID,
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DOWNLOAD_TEST_ORIGIN: RELEASE_ENVIRONMENT.DOWNLOAD_TEST_ORIGIN,
+    }, 'win32')
+    // The icon is part of this fork's desktop sources, so it must reach
+    // electron-builder instead of leaving the default Electron icon in place.
+    expect(config.icon?.replaceAll('\\', '/')).toContain('/build/icon.ico')
+  })
+
   it('requires the full Windows signing set once any signing credential is configured', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     // The signer resolves the certificate first, so any partial set that omits

@@ -2,6 +2,7 @@
 export interface DesktopElectronBuilderConfig {
   readonly appId: string
   readonly electronDist?: string
+  readonly icon?: string
   readonly directories: {
     readonly output: string
   }
