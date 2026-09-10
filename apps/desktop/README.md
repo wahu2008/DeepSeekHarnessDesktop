@@ -165,6 +165,8 @@ pnpm run package:desktop:win:x64
 
 Release automation leaves the variable unset and keeps the upstream zip-extraction path.
 
+Antivirus software that opens a freshly written executable for scanning can also lock the packaged `DeepSeek Harness.exe` while electron-builder injects its asar-integrity resource, and packaging then fails with `UNKNOWN: unknown error, open '<appOutDir>\DeepSeek Harness.exe'`. The write itself is fine — it only has to wait for the scanner to release the file — so retrying it produces the intended artifact unchanged. Excluding `apps/desktop/.desktop-build` from scanning removes the failure outright. Setting `win.disableAsarIntegrity: true` also avoids it by writing no integrity resource, which is safe only because this build leaves Electron's `EnableEmbeddedAsarIntegrityValidation` fuse off, so the resource is never enforced.
+
 Create a runnable application directory instead of an installer by using the matching `:dir` command, such as:
 
 ```sh

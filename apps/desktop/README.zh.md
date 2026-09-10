@@ -165,6 +165,8 @@ pnpm run package:desktop:win:x64
 
 发布自动化不设置该变量，并保留上游的 zip 解压路径。
 
+杀毒软件会在可执行文件刚写出时打开它做扫描，因此 electron-builder 注入 asar 完整性资源时可能锁住已打包的 `DeepSeek Harness.exe`，打包随之失败并报 `UNKNOWN: unknown error, open '<appOutDir>\DeepSeek Harness.exe'`。这次写入本身没有问题，只是要等扫描释放文件，重试即可得到内容不变的产物；把 `apps/desktop/.desktop-build` 加入杀毒排除项可以直接消除该失败。改用 `win.disableAsarIntegrity: true` 也能绕过（不写完整性资源），但只有在确认 Electron 的 `EnableEmbeddedAsarIntegrityValidation` fuse 未开启时才安全——本构建确实未开启。
+
 使用对应的 `:dir` 命令可以生成可直接运行的应用目录，而不是安装包，例如：
 
 ```sh
