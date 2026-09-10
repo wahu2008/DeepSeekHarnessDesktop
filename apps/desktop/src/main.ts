@@ -1,7 +1,7 @@
 /** Electron shell: desktop project ownership, custom protocol, windows, and lifecycle. */
 
-import { readFile, writeFile } from 'node:fs/promises'
-import { extname, join, normalize, resolve, sep } from 'node:path'
+import { writeFile } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   app,
@@ -48,13 +48,6 @@ protocol.registerSchemesAsPrivileged([{
     codeCache: true,
   },
 }])
-
-const MIME: Readonly<Record<string, string>> = {
-  '.css': 'text/css; charset=utf-8',
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.svg': 'image/svg+xml',
-}
 
 interface RuntimeResources {
   readonly node: string
@@ -120,26 +113,6 @@ function assertDesktopSender(event: IpcMainInvokeEvent, hostnames: readonly stri
   }
 }
 
-async function serveShellAsset(request: Request): Promise<Response> {
-  if (request.method !== 'GET' && request.method !== 'HEAD') return new Response(null, { status: 405 })
-  const root = resolve(app.getAppPath(), 'renderer')
-  const url = new URL(request.url)
-  let pathname: string
-  try {
-    pathname = decodeURIComponent(url.pathname)
-  } catch {
-    return new Response(null, { status: 400 })
-  }
-  const target = resolve(normalize(join(root, pathname)))
-  if (target !== root && !target.startsWith(root + sep)) return new Response(null, { status: 403 })
-  try {
-    const body = request.method === 'HEAD' ? null : await readFile(target)
-    return new Response(body, { headers: { 'content-type': MIME[extname(target)] ?? 'application/octet-stream' } })
-  } catch {
-    return new Response(null, { status: 404 })
-  }
-}
-
 async function main(): Promise<void> {
   const resources = runtimeResources()
   const paths = resolveDesktopPaths()
@@ -150,13 +123,11 @@ async function main(): Promise<void> {
   if (development === undefined) manager.recover()
   let host: DesktopHostProcess | undefined
   let mainWindow: BrowserWindow | undefined
-  let pluginWindow: BrowserWindow | undefined
   let shellInstallerOwnsQuit = false
   let updateState: DesktopUpdateState = { phase: 'idle' }
   const locale = resolveDesktopLocale(app.getLocale())
   const messages = locale.messages
   const appPreload = fileURLToPath(new URL('./preload-app.cjs', import.meta.url))
-  const managementPreload = fileURLToPath(new URL('./preload.cjs', import.meta.url))
 
   const publishUpdate = (state: DesktopUpdateState): DesktopUpdateState => {
     updateState = state
@@ -231,9 +202,10 @@ async function main(): Promise<void> {
     },
   )
 
+  // The fork serves only the dsh renderer; the separate management window and
+  // its `shell` host are gone, so `dsh-app://app/` is the only owned origin.
   protocol.handle(SCHEME, (request) => {
     const url = new URL(request.url)
-    if (url.hostname === 'shell') return serveShellAsset(request)
     if (url.hostname !== 'app') return Promise.resolve(new Response(null, { status: 404 }))
     const active = host
     if (active === undefined) return Promise.resolve(new Response('backend unavailable', { status: 503 }))
@@ -241,19 +213,15 @@ async function main(): Promise<void> {
   })
 
   const mutate = async (event: IpcMainInvokeEvent, mutation: Parameters<DesktopProjectManager['mutate']>[0]): Promise<void> => {
-    assertDesktopSender(event, ['shell'])
+    assertDesktopSender(event, ['app'])
     if (development !== undefined) {
       throw new Error('dsh desktop: plugin package changes require a packaged application')
     }
     await manager.mutate(mutation, hooks)
     if (mainWindow !== undefined && !mainWindow.isDestroyed()) mainWindow.webContents.reload()
   }
-  ipcMain.handle(DESKTOP_IPC.localeGet, (event) => {
-    assertDesktopSender(event, ['shell'])
-    return locale
-  })
   ipcMain.handle(DESKTOP_IPC.pluginsList, (event) => {
-    assertDesktopSender(event, ['shell'])
+    assertDesktopSender(event, ['app'])
     if (development !== undefined) return []
     return manager.listPlugins()
   })
@@ -272,11 +240,11 @@ async function main(): Promise<void> {
     return mutate(event, { type: 'plugin-update', name, version })
   })
   ipcMain.handle(DESKTOP_IPC.updatesCheck, async (event) => {
-    assertDesktopSender(event, ['shell'])
+    assertDesktopSender(event, ['app'])
     return updates.check()
   })
   ipcMain.handle(DESKTOP_IPC.updatesInstall, async (event) => {
-    assertDesktopSender(event, ['shell'])
+    assertDesktopSender(event, ['app'])
     await updates.install()
   })
   // Fork extension: About-section data for the main dsh renderer. Read-only
@@ -304,28 +272,12 @@ async function main(): Promise<void> {
     return true
   })
 
-  const checkAndPrompt = async (manual: boolean): Promise<void> => {
+  // Updates are driven from Settings → About. The shell still checks once
+  // after boot and speaks up only when a release really is available, so a
+  // user who never opens About still learns about one.
+  const promptForAvailableUpdate = async (): Promise<void> => {
     const state = await updates.check()
-    if (state.phase === 'error') {
-      if (manual) {
-        await dialog.showMessageBox({
-          type: 'error',
-          title: messages.updateCheckFailedTitle,
-          message: state.message ?? messages.unknownError,
-        })
-      }
-      return
-    }
-    if (state.phase !== 'available') {
-      if (manual) {
-        await dialog.showMessageBox({
-          type: 'info',
-          title: messages.updateCheckTitle,
-          message: state.message ?? messages.updateCurrent,
-        })
-      }
-      return
-    }
+    if (state.phase !== 'available') return
     const result = await dialog.showMessageBox({
       type: 'info',
       title: messages.updateTitle,
@@ -346,33 +298,15 @@ async function main(): Promise<void> {
     }
   }
 
-  const openPluginWindow = (): void => {
-    if (pluginWindow !== undefined && !pluginWindow.isDestroyed()) {
-      pluginWindow.focus()
-      return
-    }
-    pluginWindow = createWindow(managementPreload)
-    pluginWindow.setSize(900, 620)
-    pluginWindow.setTitle(messages.pluginWindowTitle)
-    pluginWindow.once('ready-to-show', () => { pluginWindow?.show() })
-    pluginWindow.once('closed', () => { pluginWindow = undefined })
-    void pluginWindow.loadURL(`${SCHEME}://shell/plugin-manager.html`)
-  }
-
-  Menu.setApplicationMenu(Menu.buildFromTemplate([{
-    label: process.platform === 'darwin' ? app.name : messages.application,
-    submenu: [
-      {
-        label: development === undefined ? messages.pluginsMenu : messages.pluginsMenuPackagedOnly,
-        accelerator: 'CmdOrCtrl+,',
-        enabled: development === undefined,
-        click: openPluginWindow,
-      },
-      { label: messages.checkUpdatesMenu, click: () => { void checkAndPrompt(true) } },
-      { type: 'separator' },
-      { role: 'quit' },
-    ],
-  }]))
+  // Fork behavior: no Desktop-owned application menu. The upstream menu carried
+  // the desktop plugin manager and the update check, and both moved into the dsh
+  // Settings surface (Plugins → Desktop plugins, and About), so Windows and
+  // Linux install no menu bar at all and the window keeps only its own title-bar
+  // controls. macOS keeps the standard roles its system shortcuts require
+  // (clipboard, quit, window management); none of them opens a Desktop surface.
+  Menu.setApplicationMenu(process.platform === 'darwin'
+    ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }])
+    : null)
 
   const createMainWindow = (): BrowserWindow => {
     const window = createWindow(appPreload)
@@ -399,7 +333,7 @@ async function main(): Promise<void> {
     mainWindow.webContents.openDevTools({ mode: 'detach' })
   }
   publishUpdate(updateState)
-  setTimeout(() => { void checkAndPrompt(false) }, 10_000)
+  setTimeout(() => { void promptForAvailableUpdate() }, 10_000)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) focusPrimaryWindow()

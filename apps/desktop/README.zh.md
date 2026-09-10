@@ -23,9 +23,9 @@
 
 Electron 拥有保留 profile `$DSH_HOME/profiles/desktop`。其 manifest 通过 `dsh.profile.bundles` 列出内置与已安装插件 bundle，`node_modules` 则同时包含精确版本的 `@deepseek-ai/dsh`、与之匹配的私有 `@deepseek-ai/dsh-desktop-host` 和所有桌面插件。把 Electron 专用进程入口与 overlay 放入私有应用包，可以避免 Desktop 实现成为公共 CLI 包的一部分。CLI 不能启动或修改该 profile。Electron 始终调用自身内置的 Node.js 与 pnpm，并把 store 固定在 `$DSH_HOME/desktop/pnpm/store`；它绝不使用系统 pnpm 或调用方的 npm/pnpm 配置。
 
-dsh 主渲染进程只获得桌面协议标记。独立插件窗口获得结构化的列出、安装、移除、更新和更新检查操作；两个渲染进程都拿不到文件系统、原始 Electron IPC、shell 或任意 pnpm 参数。本 fork 额外为主窗口的标记扩展了只读 About 桥（`about()` 发布身份与用于打开 http(s) 链接的 `openExternal()`），用于驱动 Web 设置中的“关于”页面；它不执行任何插件变更，也不授予文件系统访问权限。每个沙箱化 preload 都作为独立单入口产物构建，因此只 require `electron`：否则共享 chunk 会以 `module not found` 加载失败，并静默禁用整个桥。打包还会为应用、安装器和卸载器嵌入 fork 图标 `build/icon.ico`。
+dsh 主渲染进程只获得桌面协议标记与本 fork 的载体桥。本 fork 去掉了桌面壳的应用菜单与独立插件窗口，并把两者的入口都搬进 Web 设置界面：`about()` 发布身份与用于打开 http(s) 链接的 `openExternal()` 驱动“设置 → 关于”；`plugins.list/add/remove/update` 在“设置 → 插件 → 桌面插件”里管理桌面 profile 的 npm 插件；`updates.check/install` 与状态订阅驱动关于页上的更新控件。渲染进程拿不到文件系统、原始 Electron IPC、shell 或任意 pnpm 参数。每个沙箱化 preload 都作为独立单入口产物构建，因此只 require `electron`：否则共享 chunk 会以 `module not found` 加载失败，并静默禁用整个桥。打包还会为应用、安装器和卸载器嵌入 fork 图标 `build/icon.ico`。
 
-Electron 根据应用 locale 选择类型化的中英文字典，并以英文作为 fallback。菜单、原生对话框与插件管理渲染进程使用同一 locale 数据；仓库的 Client UI i18n gate 会检查这些桌面源文件。
+Electron 根据应用 locale 选择类型化的中英文字典，并只为自己仍然拥有的两个原生对话框（启动失败、发现可用更新）以英文作为 fallback。本 fork 搬进渲染进程的设置界面则使用随客户端发布的字典文案；仓库的 Client UI i18n gate 会检查这些桌面源文件。
 
 ### Seed 安装
 
@@ -102,7 +102,9 @@ macOS arm64 命令要求 Apple Silicon。macOS x64 命令可以在 Intel macOS �
 
 ### 上传更新
 
-`DSH_DESKTOP_AUTO_UPDATE_ENV` 同时选择打包时写入的更新 URL 与后续 COS 上传目标，可取 `test` 或 `production`；未设置时使用 `test`。测试打包必须通过 `DOWNLOAD_TEST_ORIGIN` 提供 HTTPS origin，生产 origin 仍为 `https://download.deepseek.com`。上传还必须通过 `DOWNLOAD_TEST_COS_BUCKET` 或 `DOWNLOAD_PROD_COS_BUCKET` 提供所选环境的 COS bucket。目标路径为 `_/harness/desktop/stable/<target>/`，其中 `target` 为 `mac-arm64`、`mac-x64` 或 `win-x64`。
+本 fork：打包后的 fork 构建始终写入 GitHub 更新源（`publish: [{ provider: 'github', owner: 'wahu2008', repo: 'DeepSeekHarnessDesktop' }]`），因此桌面发布从该仓库的 GitHub Releases 获取，打包过程完全不需要更新 origin。下面的 COS 部署仍保留给上传工具，并维持各自的环境约束；目标完成记录改写该 GitHub release 页面，使打包与 COS 解耦。
+
+`DSH_DESKTOP_AUTO_UPDATE_ENV` 选择上游 generic provider 写入的更新 URL 与后续 COS 上传目标，可取 `test` 或 `production`；未设置时使用 `test`。测试打包必须通过 `DOWNLOAD_TEST_ORIGIN` 提供 HTTPS origin，生产 origin 仍为 `https://download.deepseek.com`。上传还必须通过 `DOWNLOAD_TEST_COS_BUCKET` 或 `DOWNLOAD_PROD_COS_BUCKET` 提供所选环境的 COS bucket。目标路径为 `_/harness/desktop/stable/<target>/`，其中 `target` 为 `mac-arm64`、`mac-x64` 或 `win-x64`。
 
 更新目标与上传凭据都与所选环境对应：
 
@@ -148,10 +150,11 @@ PIN 不能包含 `]`、引号或换行，因为这些字符用于分隔 SafeNet 
 本 fork 放宽了上游的签名约束，使没有 SafeNet EV Token 也能在本地构建 Windows 安装包。当四个 `DSH_DESKTOP_WINDOWS_*` 变量都未设置时，electron-builder 会生成未签名的 NSIS 安装包（`win.forceCodeSigning` 被禁用且不安装签名器）；Windows SmartScreen 会就发布者给出警告。只要设置了四个变量中的任何一个，就仍要求四个全部提供，因此已配置的签名身份绝不会被静默降级为未签名产物。
 
 ```powershell
-$env:DSH_DESKTOP_APP_ID = 'com.example.dsh-desktop'
-$env:DOWNLOAD_TEST_ORIGIN = 'https://desktop-updates.example.com'
+$env:DSH_DESKTOP_APP_ID = 'com.wahu2008.dsh-desktop'
 pnpm run package:desktop:win:x64
 ```
+
+`com.wahu2008.dsh-desktop` 是本 fork 的应用 ID，也是已有安装包所用的取值。它同时决定 NSIS 产品 GUID，因此用其他 ID 打包会并列安装第二个应用，而不是升级现有安装。打包过程不再需要更新 origin：打包产物直接内嵌上文所述的 GitHub 更新源。
 
 可选的 `DSH_DESKTOP_ELECTRON_DIST` 让 electron-builder 指向已解压的 Electron 发行版，Windows 打包会把它复制到应用目录，而不是解压 zip 再重命名暂存目录。未配置杀毒软件排除的本地构建可能会在该重命名期间因杀毒软件扫描刚写入的可执行文件而遇到 `EPERM`；从已解压发行版复制可以避免此问题：
 
@@ -183,9 +186,9 @@ pnpm run prepare:desktop
 
 ## 更新
 
-打包应用会在主窗口打开十秒后检查目标专用的发布流；本地化的 **检查更新…** 菜单项会手动触发同一检查。发现可用版本时，应用打开一个原生确认弹窗。用户确认后，应用等待正在进行的检查完成，下载并验证已签名的 Desktop 发布、停止 dsh 子进程，并把安装与重启交给 electron-updater。下次启动会先校准版本绑定的 seed，再重新打开产品窗口。
+打包应用会在主窗口打开十秒后检查目标专用的发布流，并且只在确实发现可用版本时才打开原生确认弹窗。“设置 → 关于”里的 **检查更新** 按钮会手动触发同一检查，并把每个状态就地渲染在页面上。用户确认后，应用等待正在进行的检查完成，下载并验证已签名的 Desktop 发布、停止 dsh 子进程，并把安装与重启交给 electron-updater。下次启动会先校准版本绑定的 seed，再重新打开产品窗口。
 
-Electron-builder 始终为 `DSH_DESKTOP_AUTO_UPDATE_ENV` 选择的部署生成 generic-provider 频道元数据。NSIS 差分包与 macOS ZIP 目标让 electron-updater 可以复用未变化的数据块；供手动安装的 DMG 经过公证，但不生成 blockmap，因为它不是 macOS updater 的载荷。Seed 与桌面壳仍属于同一个签名 Desktop 发布。macOS 签名与公证凭据使用 electron-builder 的标准环境变量；Windows EV 签名使用上文所述的公开证书、已验证 SignTool、SafeNet 容器和 runner PIN。必填 Desktop 发布环境选择构建所验证的应用身份与平台签名身份。
+Electron-builder 为本 fork 的仓库生成 github-provider 频道元数据，因此频道文件与安装包属于对应的 GitHub Release，而不是上游的 COS 部署。NSIS 差分包与 macOS ZIP 目标让 electron-updater 可以复用未变化的数据块；供手动安装的 DMG 经过公证，但不生成 blockmap，因为它不是 macOS updater 的载荷。Seed 与桌面壳仍属于同一个签名 Desktop 发布。macOS 签名与公证凭据使用 electron-builder 的标准环境变量；Windows EV 签名使用上文所述的公开证书、已验证 SignTool、SafeNet 容器和 runner PIN。必填 Desktop 发布环境选择构建所验证的应用身份与平台签名身份。
 
 ## 底层开发覆盖项
 

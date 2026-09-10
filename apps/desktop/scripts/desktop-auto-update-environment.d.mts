@@ -1,6 +1,19 @@
 /** Environment variable that selects the Desktop update deployment. */
 export const DESKTOP_AUTO_UPDATE_ENV: 'DSH_DESKTOP_AUTO_UPDATE_ENV'
 
+/** Fork: GitHub account owning the Desktop release and its updater feed. */
+export const DESKTOP_UPDATE_OWNER: 'wahu2008'
+
+/** Fork: repository holding the Desktop release and its updater metadata. */
+export const DESKTOP_UPDATE_REPOSITORY: 'DeepSeekHarnessDesktop'
+
+/**
+ * Return the GitHub release a Desktop version publishes its updater feed to.
+ * @param version - Desktop semantic version.
+ * @returns Release page URL holding the channel metadata and installers.
+ */
+export function desktopUpdateReleaseUrl(version: string): string
+
 /** Supported Desktop update deployment. */
 export type DesktopAutoUpdateEnvironment = 'test' | 'production'
 

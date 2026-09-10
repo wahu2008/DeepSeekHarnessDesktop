@@ -57,8 +57,9 @@ describe('desktop macOS release signature', () => {
         writeUpdateInfo: false,
       },
       publish: [{
-        provider: 'generic',
-        url: 'https://desktop-updates.example.com/_/harness/desktop/stable/mac-arm64/',
+        provider: 'github',
+        owner: 'wahu2008',
+        repo: 'DeepSeekHarnessDesktop',
       }],
     })
     expect(typeof config.artifactBuildCompleted).toBe('function')

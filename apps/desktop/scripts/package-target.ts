@@ -6,7 +6,8 @@ import { parseArgs } from 'node:util'
 import { join, resolve } from 'node:path'
 import {
   desktopBuildRecordFilename,
-  resolveDesktopAutoUpdateConfig,
+  desktopUpdateReleaseUrl,
+  resolveDesktopAutoUpdateEnvironment,
 } from './desktop-auto-update-environment.mjs'
 import { desktopTargetBuildPaths } from './desktop-build-paths.mjs'
 
@@ -104,15 +105,17 @@ function writeReleaseRecord(
   if (desktopVersion !== dshVersion) {
     throw new Error(`desktop package: desktop version ${desktopVersion} does not match dsh version ${dshVersion}`)
   }
-  const update = resolveDesktopAutoUpdateConfig(environment, target.platform, target.arch)
+  // Fork behavior: the fork updates from GitHub Releases, so the record names
+  // the release page instead of requiring a COS origin at packaging time.
+  const updateEnvironment = resolveDesktopAutoUpdateEnvironment(environment)
   const recordPath = join(artifactsRoot, desktopBuildRecordFilename(target.name))
   const temporaryPath = `${recordPath}.tmp`
   writeFileSync(temporaryPath, `${JSON.stringify({
     schemaVersion: 1,
     target: target.name,
     version: dshVersion,
-    environment: update.environment,
-    publicUrl: update.publicUrl,
+    environment: updateEnvironment,
+    publicUrl: desktopUpdateReleaseUrl(dshVersion),
   }, null, 2)}\n`)
   renameSync(temporaryPath, recordPath)
 }

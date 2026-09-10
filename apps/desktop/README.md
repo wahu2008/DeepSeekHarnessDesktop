@@ -23,9 +23,9 @@ The [Electron packaging and update Agent Note](../../.agents/notes/implemented/a
 
 Electron owns the reserved profile at `$DSH_HOME/profiles/desktop`. Its manifest lists the built-in and installed plugin bundles in `dsh.profile.bundles`, while its `node_modules` contains the exact `@deepseek-ai/dsh` release, its matching private `@deepseek-ai/dsh-desktop-host`, and every desktop plugin. Keeping the Electron-only process entry and overlay in a private app package prevents Desktop implementation from becoming part of the public CLI package. The CLI cannot boot or mutate this profile. Electron always invokes its bundled Node.js and pnpm with the store at `$DSH_HOME/desktop/pnpm/store`; it never uses system pnpm or the caller's npm/pnpm configuration.
 
-The main dsh renderer receives only the desktop protocol marker. The separate plugin window receives structured list, install, remove, update, and update-check operations; neither renderer receives filesystem access, raw Electron IPC, a shell, or arbitrary pnpm arguments. This fork additionally extends the main-window marker with a read-only About bridge (`about()` release identity and `openExternal()` for http(s) links) that feeds the web Settings "About" section; it performs no plugin mutation and grants no filesystem access. Each sandboxed preload is built as its own single-entry bundle so it requires only `electron`: a shared chunk would otherwise fail to load with `module not found` and silently disable the whole bridge. Packaging also embeds the fork icon `build/icon.ico` for the application, installer, and uninstaller.
+The main dsh renderer receives the desktop protocol marker plus the fork's carrier bridge. The fork removed the shell's application menu and its separate plugin window, and moved both of their surfaces into the web Settings UI: `about()` release identity and `openExternal()` for http(s) links feed Settings → About, `plugins.list/add/remove/update` manage the desktop profile's npm plugins in Settings → Plugins → Desktop plugins, and `updates.check/install` plus a state subscription drive the update control on the About page. The renderer receives no filesystem access, raw Electron IPC, a shell, or arbitrary pnpm arguments. Each sandboxed preload is built as its own single-entry bundle so it requires only `electron`: a shared chunk would otherwise fail to load with `module not found` and silently disable the whole bridge. Packaging also embeds the fork icon `build/icon.ico` for the application, installer, and uninstaller.
 
-Electron chooses typed English or Chinese shell copy from its application locale and falls back to English. Menus, native dialogs, and the plugin-management renderer use the same locale payload; the repository Client UI i18n gate checks these desktop sources.
+Electron chooses typed English or Chinese shell copy from its application locale and falls back to English for the two native dialogs the shell still owns: a startup failure and an available release. The Settings surfaces the fork moved into the renderer render client copy from the shipped client dictionaries; the repository Client UI i18n gate checks those desktop sources.
 
 ### Seed installation
 
@@ -102,7 +102,9 @@ Each target owns its packed package inputs, prepared runtime, package set, seed,
 
 ### Upload updates
 
-`DSH_DESKTOP_AUTO_UPDATE_ENV` selects `test` or `production` for both the URL embedded during packaging and the later COS upload; an absent value selects `test`. Test packaging requires its HTTPS origin in `DOWNLOAD_TEST_ORIGIN`, while the production origin remains `https://download.deepseek.com`. Upload additionally requires the selected deployment's COS bucket in `DOWNLOAD_TEST_COS_BUCKET` or `DOWNLOAD_PROD_COS_BUCKET`. The target path is `_/harness/desktop/stable/<target>/`, where `target` is `mac-arm64`, `mac-x64`, or `win-x64`.
+Fork: a packaged fork build always embeds the GitHub updater feed (`publish: [{ provider: 'github', owner: 'wahu2008', repo: 'DeepSeekHarnessDesktop' }]`), so desktop releases are taken from that repository's GitHub Releases and packaging needs no update origin at all. The COS deployment below remains in place for the upload tooling and keeps its own environment contract; the target completion record names the GitHub release page so packaging stays independent of it.
+
+`DSH_DESKTOP_AUTO_UPDATE_ENV` selects `test` or `production` for the URL the upstream generic provider embeds and for the later COS upload; an absent value selects `test`. Test packaging requires its HTTPS origin in `DOWNLOAD_TEST_ORIGIN`, while the production origin remains `https://download.deepseek.com`. Upload additionally requires the selected deployment's COS bucket in `DOWNLOAD_TEST_COS_BUCKET` or `DOWNLOAD_PROD_COS_BUCKET`. The target path is `_/harness/desktop/stable/<target>/`, where `target` is `mac-arm64`, `mac-x64`, or `win-x64`.
 
 The update destination and upload credentials follow the selected deployment:
 
@@ -111,7 +113,7 @@ The update destination and upload credentials follow the selected deployment:
 | `test` or unset | `DOWNLOAD_TEST_ORIGIN` | `DOWNLOAD_TEST_COS_BUCKET` | `DOWNLOAD_TEST_COS_SECRET_ID`, `DOWNLOAD_TEST_COS_SECRET_KEY` |
 | `production` | `https://download.deepseek.com` | `DOWNLOAD_PROD_COS_BUCKET` | `DOWNLOAD_PROD_COS_SECRET_ID`, `DOWNLOAD_PROD_COS_SECRET_KEY` |
 
-Package and upload one target under the same environment. For example, the default test deployment uses:
+Package and upload one target under the same environment. For example, the upstream test deployment uses:
 
 ```sh
 export DOWNLOAD_TEST_ORIGIN='https://desktop-updates.example.com'
@@ -148,10 +150,11 @@ The PIN cannot contain `]`, a quote, or a line break because those characters de
 This fork relaxes the upstream signing contract so a Windows installer can be built locally without the SafeNet EV token. When none of the four `DSH_DESKTOP_WINDOWS_*` variables is set, electron-builder emits an unsigned NSIS package (`win.forceCodeSigning` is disabled and no signer is installed); Windows SmartScreen will warn about the publisher. Setting any one of the four variables keeps the upstream requirement that all four are present, so a configured signing identity is never silently downgraded to an unsigned artifact.
 
 ```powershell
-$env:DSH_DESKTOP_APP_ID = 'com.example.dsh-desktop'
-$env:DOWNLOAD_TEST_ORIGIN = 'https://desktop-updates.example.com'
+$env:DSH_DESKTOP_APP_ID = 'com.wahu2008.dsh-desktop'
 pnpm run package:desktop:win:x64
 ```
+
+`com.wahu2008.dsh-desktop` is this fork's application id and the value its published installers were built with. It also derives the NSIS product GUID, so building with a different id installs a second application beside the existing one instead of upgrading it. Packaging no longer needs an update origin: the packaged build embeds the GitHub feed described above.
 
 An optional `DSH_DESKTOP_ELECTRON_DIST` points electron-builder at an already-unpacked Electron distribution so Windows packaging copies it into the app directory instead of extracting the zip and renaming the staging directory. Local builds without an antivirus exclusion can hit an `EPERM` on that rename while antivirus scans the freshly written executables; copying from an unpacked distribution avoids it:
 
@@ -183,9 +186,9 @@ An unpacked artifact contains four independent size contributors: Electron, the 
 
 ## Updates
 
-A packaged application checks its target-specific release stream ten seconds after the main window opens; the localized **Check for Updates…** menu item triggers the same check manually. An available release opens one native confirmation dialog. Accepting it waits for an in-flight check, downloads and verifies the signed Desktop release, stops the dsh child, and hands installation plus restart to electron-updater. The next launch reconciles the version-bound seed before reopening the product window.
+A packaged application checks its target-specific release stream ten seconds after the main window opens and opens the native confirmation dialog only when a release really is available. The **Check for updates** control in Settings → About triggers the same check manually and renders every state inline. Accepting the prompt waits for an in-flight check, downloads and verifies the signed Desktop release, stops the dsh child, and hands installation plus restart to electron-updater. The next launch reconciles the version-bound seed before reopening the product window.
 
-Electron-builder always emits generic-provider channel metadata for the deployment selected by `DSH_DESKTOP_AUTO_UPDATE_ENV`. NSIS differential packages and the macOS ZIP target allow electron-updater to reuse unchanged blocks; the manually installed DMG is notarized without a blockmap because it is not a macOS updater payload. The seed and shell still form one signed Desktop release. macOS signing and notarization credentials use electron-builder's standard environment; Windows EV signing uses the public certificate, validated SignTool, SafeNet container, and runner PIN described above. The required Desktop release environment selects the application and platform signature identities that the build verifies.
+Electron-builder emits GitHub-provider channel metadata for the fork's repository, so the channel file and installers belong to a GitHub Release rather than the upstream COS deployment. NSIS differential packages and the macOS ZIP target allow electron-updater to reuse unchanged blocks; the manually installed DMG is notarized without a blockmap because it is not a macOS updater payload. The seed and shell still form one signed Desktop release. macOS signing and notarization credentials use electron-builder's standard environment; Windows EV signing uses the public certificate, validated SignTool, SafeNet container, and runner PIN described above. The required Desktop release environment selects the application and platform signature identities that the build verifies.
 
 ## Low-level development overrides
 

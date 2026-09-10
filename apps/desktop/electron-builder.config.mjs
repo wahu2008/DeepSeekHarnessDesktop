@@ -9,7 +9,11 @@ import {
   createWindowsTokenSigner,
   installWindowsNsisBootstrapSigner,
 } from './scripts/windows-sign.mjs'
-import { resolveDesktopAutoUpdateConfig } from './scripts/desktop-auto-update-environment.mjs'
+import {
+  DESKTOP_UPDATE_OWNER,
+  DESKTOP_UPDATE_REPOSITORY,
+  resolveDesktopAutoUpdateTarget,
+} from './scripts/desktop-auto-update-environment.mjs'
 import { desktopTargetBuildPaths } from './scripts/desktop-build-paths.mjs'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -63,8 +67,12 @@ export function createElectronBuilderConfig(
   if (windowsSigner !== undefined) {
     installWindowsNsisBootstrapSigner({ sign: windowsSigner })
   }
-  const update = resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
-  const buildPaths = desktopTargetBuildPaths(update.target)
+  // Fork behavior: the packaged build takes its updater feed from the fork's
+  // GitHub Releases instead of the upstream COS deployment, so packaging no
+  // longer needs an update origin in the environment. The target still selects
+  // the per-target build directories.
+  const updateTarget = resolveDesktopAutoUpdateTarget(resolvedPlatform, resolvedArch)
+  const buildPaths = desktopTargetBuildPaths(updateTarget)
   // Fork extension: DSH_DESKTOP_ELECTRON_DIST points electron-builder at an
   // already-unpacked Electron distribution so Windows packaging copies it into
   // the app directory instead of extracting the zip and renaming the staging
@@ -89,7 +97,6 @@ export function createElectronBuilderConfig(
     files: [
       'lib/*.js',
       'lib/*.cjs',
-      'renderer/**/*',
       'package.json',
     ],
     extraResources: [
@@ -142,7 +149,7 @@ export function createElectronBuilderConfig(
       differentialPackage: true,
       ...(hasApplicationIcon ? { installerIcon: applicationIcon, uninstallerIcon: applicationIcon } : {}),
     },
-    publish: [{ provider: 'generic', url: update.publicUrl }],
+    publish: [{ provider: 'github', owner: DESKTOP_UPDATE_OWNER, repo: DESKTOP_UPDATE_REPOSITORY }],
   }
 }
 

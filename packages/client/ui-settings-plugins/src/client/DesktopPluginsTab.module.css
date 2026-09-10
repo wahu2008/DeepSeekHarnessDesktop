@@ -1,0 +1,136 @@
+/* Desktop Plugins tab: install form plus the installed-plugin inventory. */
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 12px;
+}
+
+.intro {
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary, #8a8f98);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.installForm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  color: var(--dsw-alias-label-secondary, #aeb3bd);
+  font-size: 12px;
+}
+
+.installRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.input {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--dsw-alias-border-secondary, rgba(255, 255, 255, .16));
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-secondary, rgba(255, 255, 255, .04));
+  color: var(--dsw-alias-label-primary, #d0d4dc);
+  font-size: 12px;
+}
+
+.status {
+  min-height: 16px;
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary, #8a8f98);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+}
+
+.heading {
+  margin: 0 0 8px;
+  color: var(--dsw-alias-label-primary, #d0d4dc);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.empty {
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary, #8a8f98);
+  font-size: 12px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--dsw-alias-border-tertiary, rgba(255, 255, 255, .08));
+}
+
+.identity {
+  min-width: 0;
+  overflow-wrap: break-word;
+  color: var(--dsw-alias-label-secondary, #aeb3bd);
+  font-size: 12px;
+}
+
+.version {
+  margin-left: 8px;
+  color: var(--dsw-alias-label-tertiary, #8a8f98);
+}
+
+.actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.button {
+  padding: 4px 12px;
+  border: 1px solid var(--dsw-alias-border-secondary, rgba(255, 255, 255, .16));
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary, #aeb3bd);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.button:hover:enabled {
+  border-color: var(--dsw-alias-accent-primary, #4d9fff);
+  color: var(--dsw-alias-label-primary, #d0d4dc);
+}
+
+.button:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
+.buttonPrimary {
+  padding: 4px 12px;
+  border: 1px solid var(--dsw-alias-accent-primary, #4d9fff);
+  border-radius: 6px;
+  background: var(--dsw-alias-accent-primary, #4d9fff);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.buttonPrimary:disabled {
+  opacity: .55;
+  cursor: default;
+}

@@ -23,6 +23,7 @@ import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import { AgentLoopCard } from './AgentLoopCard.tsx'
 import { BashCard } from './BashCard.tsx'
 import { ConfigurablePluginsTab } from './ConfigurablePluginsTab.tsx'
+import { DesktopPluginsTab, resolveDesktopPlugins } from './DesktopPluginsTab.tsx'
 import { PluginsSettingsSection } from './PluginsSettingsSection.tsx'
 import type { PluginsSettingsSectionInjected, PluginsSettingsTabEntry } from './PluginsSettingsSection.tsx'
 import { SubagentModelSelectionCard } from './SubagentModelSelectionCard.tsx'
@@ -37,6 +38,7 @@ import { WEB_SEARCH_NS, WebSearchCardController } from './web-search-card-contro
 import { en, zh } from './locales.ts'
 
 export type { PluginsSettingsSectionInjected, PluginsSettingsSectionProps } from './PluginsSettingsSection.tsx'
+export type { DesktopPluginsTabProps } from './DesktopPluginsTab.tsx'
 export type { ConfigurablePluginsTabProps } from './ConfigurablePluginsTab.tsx'
 export type { ConfigurablePluginsTabFace, ConfigurablePluginsTabState } from './tab-store.ts'
 export type { PluginCardProps } from './PluginCard.tsx'
@@ -163,6 +165,20 @@ export function apply(ctx: ClientContext): void {
     inject: () => configurable.inject(),
     children: { 'settings.plugin.item': { kind: 'keyed', scope: 'root' } },
   }, ConfigurablePluginsTab))
+
+  // Desktop profile plugins. The fork removed the shell's own manager window,
+  // so its inventory is a second tab here. It exists only inside the Electron
+  // carrier, where the desktop preload exposes the plugin bridge; a bare
+  // browser `dsh web` has no desktop profile to manage and registers nothing.
+  if (resolveDesktopPlugins() !== undefined) {
+    ctx.slots.inject('settings.plugins.tab', () => ctx.slots.register({
+      name: 'settings.plugins.tab',
+      id: 'desktop',
+      order: 10,
+      label: () => t('desktopTab'),
+      locale: NS,
+    }, DesktopPluginsTab))
+  }
 
   ctx.slots.inject('settings.plugin.item', function* () {
     yield ctx.slots.register({

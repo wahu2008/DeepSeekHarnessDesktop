@@ -3,6 +3,10 @@
 /** Locale keys these surfaces render. */
 export type PluginsSettingsLocaleKey =
   | 'nav' | 'title' | 'intro' | 'tabs' | 'configurableTab' | 'empty'
+  | 'desktopTab' | 'desktopIntro' | 'desktopUnavailable' | 'desktopLoading' | 'desktopEmpty'
+  | 'desktopPackageLabel' | 'desktopInstall' | 'desktopRefresh' | 'desktopInstalled'
+  | 'desktopRemove' | 'desktopUpdate' | 'desktopTargetVersion' | 'desktopRemoving'
+  | 'desktopUpdating' | 'desktopInstalling' | 'desktopRefreshing' | 'desktopOperationComplete'
   | 'overridden' | 'reset' | 'readOnly' | 'expand' | 'collapse'
   | 'save' | 'saving' | 'discard' | 'unsaved' | 'saveFailed' | 'invalidNumber'
   | 'bashTitle' | 'bashDescription' | 'bashTimeoutMs' | 'bashTimeoutMsHint'
@@ -26,6 +30,23 @@ export const en: Record<PluginsSettingsLocaleKey, string> = {
   tabs: 'Plugin views',
   configurableTab: 'Plugin configuration',
   empty: 'This deployment exposes no plugin settings.',
+  desktopTab: 'Desktop plugins',
+  desktopIntro: 'Plugins are installed only into the Desktop application\'s own node_modules, managed by its bundled pnpm. Changes install into a staging project and restart the Desktop backend.',
+  desktopUnavailable: 'Desktop plugins are available only in the packaged Desktop application.',
+  desktopLoading: 'Reading Desktop plugins…',
+  desktopEmpty: 'No Desktop plugins are installed.',
+  desktopPackageLabel: 'npm package',
+  desktopInstall: 'Install',
+  desktopRefresh: 'Refresh',
+  desktopInstalled: 'Installed',
+  desktopRemove: 'Remove',
+  desktopUpdate: 'Update',
+  desktopTargetVersion: 'Enter the target version for {name}',
+  desktopRemoving: 'Removing {name}…',
+  desktopUpdating: 'Updating {name}…',
+  desktopInstalling: 'Installing {spec}…',
+  desktopRefreshing: 'Refreshing…',
+  desktopOperationComplete: 'Done.',
   overridden: 'Overridden',
   reset: 'Reset to default',
   readOnly: 'This deployment stores settings read-only.',
@@ -82,6 +103,23 @@ export const zh: Record<PluginsSettingsLocaleKey, string> = {
   tabs: '插件视图',
   configurableTab: '插件配置',
   empty: '本部署没有开放任何插件设置。',
+  desktopTab: '桌面插件',
+  desktopIntro: '插件只安装到桌面端自己的 node_modules，并由内置 pnpm 管理；改动会先落到暂存工程，随后重启桌面后端。',
+  desktopUnavailable: '桌面插件只在打包后的桌面应用中可用。',
+  desktopLoading: '正在读取桌面插件…',
+  desktopEmpty: '还没有安装桌面插件。',
+  desktopPackageLabel: 'npm 包',
+  desktopInstall: '安装',
+  desktopRefresh: '刷新',
+  desktopInstalled: '已安装',
+  desktopRemove: '移除',
+  desktopUpdate: '更新',
+  desktopTargetVersion: '输入 {name} 的目标版本',
+  desktopRemoving: '正在移除 {name}…',
+  desktopUpdating: '正在更新 {name}…',
+  desktopInstalling: '正在安装 {spec}…',
+  desktopRefreshing: '正在刷新…',
+  desktopOperationComplete: '操作完成。',
   overridden: '已覆盖',
   reset: '恢复默认',
   readOnly: '本部署的设置为只读。',

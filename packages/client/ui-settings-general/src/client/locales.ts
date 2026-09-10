@@ -23,6 +23,15 @@ export const zh = {
   'about.basis': '基础版本',
   'about.dshHome': '数据目录',
   'about.repo': '项目主页',
+  'about.updates': '版本更新',
+  'about.checkUpdates': '检查更新',
+  'about.checking': '正在检查更新…',
+  'about.upToDate': '当前已是最新版本。',
+  'about.updateAvailable': '发现新版本 {version}。',
+  'about.installing': '正在下载并安装 {version}…',
+  'about.updateReady': '更新已就绪，应用即将重启。',
+  'about.updateFailed': '更新失败：{message}',
+  'about.installAndRestart': '安装并重启',
 } satisfies Record<string, string>
 
 /** The settings namespace key union. */
@@ -51,4 +60,13 @@ export const en = {
   'about.basis': 'Base build',
   'about.dshHome': 'Data directory',
   'about.repo': 'Repository',
+  'about.updates': 'Updates',
+  'about.checkUpdates': 'Check for updates',
+  'about.checking': 'Checking for updates…',
+  'about.upToDate': 'You already have the latest version.',
+  'about.updateAvailable': 'Version {version} is available.',
+  'about.installing': 'Downloading and installing {version}…',
+  'about.updateReady': 'The update is ready; the application is restarting.',
+  'about.updateFailed': 'Update failed: {message}',
+  'about.installAndRestart': 'Install and Restart',
 } satisfies Record<SettingsKey, string>

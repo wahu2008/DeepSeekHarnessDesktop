@@ -5,6 +5,25 @@ import { prerelease, valid } from 'semver'
 /** Environment variable that selects the Desktop update deployment. */
 export const DESKTOP_AUTO_UPDATE_ENV = 'DSH_DESKTOP_AUTO_UPDATE_ENV'
 
+/**
+ * Fork: the Desktop fork publishes and updates from its own GitHub repository.
+ * The upstream COS deployments below stay intact for the upload tooling, but a
+ * packaged fork build always takes its updater feed from GitHub Releases.
+ */
+export const DESKTOP_UPDATE_OWNER = 'wahu2008'
+
+/** Fork: repository holding the Desktop release and its updater metadata. */
+export const DESKTOP_UPDATE_REPOSITORY = 'DeepSeekHarnessDesktop'
+
+/**
+ * Return the GitHub release a Desktop version publishes its updater feed to.
+ * @param {string} version - Desktop semantic version.
+ * @returns {string} Release page URL holding the channel metadata and installers.
+ */
+export function desktopUpdateReleaseUrl(version) {
+  return `https://github.com/${DESKTOP_UPDATE_OWNER}/${DESKTOP_UPDATE_REPOSITORY}/releases/tag/v${version}`
+}
+
 const UPDATE_ENVIRONMENTS = {
   test: {
     originEnvName: 'DOWNLOAD_TEST_ORIGIN',

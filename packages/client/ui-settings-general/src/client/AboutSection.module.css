@@ -46,3 +46,53 @@
 .link:hover {
   text-decoration: underline;
 }
+
+/* Desktop update check: the fork moved the shell's "Check for Updates" here. */
+.updateRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.updateStatus {
+  margin-top: 6px;
+  color: var(--dsw-alias-label-tertiary, #8a8f98);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.button {
+  padding: 4px 12px;
+  border: 1px solid var(--dsw-alias-border-secondary, rgba(255, 255, 255, .16));
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary, #aeb3bd);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.button:hover:enabled {
+  border-color: var(--dsw-alias-accent-primary, #4d9fff);
+  color: var(--dsw-alias-label-primary, #d0d4dc);
+}
+
+.button:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
+.buttonPrimary {
+  padding: 4px 12px;
+  border: 1px solid var(--dsw-alias-accent-primary, #4d9fff);
+  border-radius: 6px;
+  background: var(--dsw-alias-accent-primary, #4d9fff);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.buttonPrimary:disabled {
+  opacity: .55;
+  cursor: default;
+}
