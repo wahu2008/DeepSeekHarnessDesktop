@@ -155,6 +155,53 @@ function profileInstalled(projectDir: string): boolean {
   return existsSync(join(projectDir, DESKTOP_RELEASE_FILE))
 }
 
+/** Top-level pnpm-workspace keys the generated profile file owns. */
+const WORKSPACE_OWNED_KEYS = [
+  'packages', 'overrides', 'nodeLinker', 'autoInstallPeers', 'strictDepBuilds', 'allowBuilds',
+] as const
+
+/**
+ * Read the blocks the shell owns out of one pnpm-workspace.yaml.
+ *
+ * pnpm edits the workspace file it installs with: when a resolution is younger
+ * than `minimumReleaseAge` it appends a `minimumReleaseAgeExclude` list. Whole-file
+ * equality against the generated text therefore cannot survive an install, so only
+ * the shell-owned blocks are compared, each as its key line plus its indented
+ * continuation lines. Blank lines and pnpm-owned keys are ignored.
+ * @param text - pnpm-workspace.yaml contents.
+ * @returns the shell-owned blocks in file order.
+ */
+function ownedWorkspaceBlocks(text: string): readonly { readonly key: string; readonly body: string }[] {
+  const owned = new Set<string>(WORKSPACE_OWNED_KEYS)
+  const blocks: Array<{ key: string; lines: string[] }> = []
+  for (const raw of text.split('\n')) {
+    const line = raw.trimEnd()
+    if (line === '') continue
+    if (/^\s/u.test(line)) {
+      blocks[blocks.length - 1]?.lines.push(line)
+      continue
+    }
+    const separator = line.indexOf(':')
+    blocks.push({ key: separator === -1 ? line : line.slice(0, separator), lines: [line] })
+  }
+  return blocks
+    .filter(block => owned.has(block.key))
+    .map(block => ({ key: block.key, body: block.lines.join('\n') }))
+}
+
+/**
+ * Compare a profile's shell-owned workspace blocks with the generated ones.
+ * @param actual - pnpm-workspace.yaml contents read from the profile.
+ * @param expected - Generated pnpm-workspace.yaml contents.
+ * @returns true when every owned block is present, in order, and unchanged.
+ */
+function workspaceBlocksMatch(actual: string, expected: string): boolean {
+  const left = ownedWorkspaceBlocks(actual)
+  const right = ownedWorkspaceBlocks(expected)
+  return left.length === right.length
+    && left.every((block, index) => block.key === right[index]?.key && block.body === right[index]?.body)
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
@@ -283,7 +330,10 @@ function projectManifest(projectDir: string): DesktopProjectManifest {
   const expectedOverrides = desktopCorePackageOverrides(packageSet)
   if (manifest.dependencies[DSH_PACKAGE] !== desktopDshPackageSpec(packageSet)
     || Object.entries(expectedOverrides).some(([name, spec]) => manifest.dependencies[name] !== spec)
-    || readFileSync(join(projectDir, 'pnpm-workspace.yaml'), 'utf8') !== workspaceFile(expectedOverrides)) {
+    || !workspaceBlocksMatch(
+      readFileSync(join(projectDir, 'pnpm-workspace.yaml'), 'utf8'),
+      workspaceFile(expectedOverrides),
+    )) {
     throw new Error(`desktop project: core package mapping does not match ${DESKTOP_PACKAGE_SET_FILE}`)
   }
   return manifest

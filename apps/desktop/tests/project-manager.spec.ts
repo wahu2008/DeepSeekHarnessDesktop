@@ -286,6 +286,32 @@ describe('desktop project transactions', () => {
     expect(manager.dshVersion()).toBe('1.0.0')
   })
 
+  it('accepts a profile whose workspace file gained pnpm bookkeeping but not a changed mapping', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(join(root, '.dsh'))
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
+    await expect(manager.applyRelease(seed, '1.0.0', hooks())).resolves.toBe(true)
+
+    // pnpm appends this list to the workspace file it installs with when a
+    // resolution is younger than minimumReleaseAge. It is bookkeeping, not part
+    // of the shell's core mapping, so the profile stays valid.
+    const workspacePath = join(paths.profile, 'pnpm-workspace.yaml')
+    const generated = readFileSync(workspacePath, 'utf8')
+    writeFileSync(workspacePath, `${generated}minimumReleaseAgeExclude:\n  - '@deepseek-ai/node-addon-system-win32-x64@0.1.2'\n`)
+    expect(manager.listPlugins()).toEqual([])
+
+    // Any change inside a block the shell owns is still refused.
+    writeFileSync(workspacePath, generated.replace('nodeLinker: hoisted', 'nodeLinker: isolated'))
+    expect(() => manager.listPlugins()).toThrow(/core package mapping/u)
+    writeFileSync(workspacePath, generated.replace(/^ {2}"@deepseek-ai\/dsh": .*$/mu, '  "@deepseek-ai/dsh": "1.0.0"'))
+    expect(() => manager.listPlugins()).toThrow(/core package mapping/u)
+  })
+
   it('restores the active project when the replacement backend cannot start', async () => {
     const root = temporaryRoot()
     const seed = join(root, 'seed')
