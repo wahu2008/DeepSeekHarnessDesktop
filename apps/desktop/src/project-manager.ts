@@ -102,6 +102,8 @@ interface DesktopSeedIntegrityRecord {
 const PROJECT_NAME = '@deepseek-ai/dsh-desktop-runtime'
 const DSH_PACKAGE = '@deepseek-ai/dsh'
 const CORE_BUILD_PACKAGE = '@deepseek-ai/dsh-subprocess-local'
+/** Release descriptor copied into every installed profile; its presence marks an install. */
+const DESKTOP_RELEASE_FILE = 'desktop-release.json'
 const DESKTOP_PROFILE_BUNDLES = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'] as const
 const WORKSPACE_SETTINGS = 'nodeLinker: hoisted\nautoInstallPeers: false\nstrictDepBuilds: true\n'
 const PACKAGE_NAME_PATTERN = /^(?:@[a-z0-9][a-z0-9._~-]*\/[a-z0-9][a-z0-9._~-]*|[a-z0-9][a-z0-9._~-]*)$/u
@@ -134,7 +136,23 @@ function workspaceFile(overrides: Readonly<Record<string, string>> = {}): string
 }
 
 function releaseFile(projectDir: string): DesktopRelease {
-  return parseDesktopRelease(readJson(join(projectDir, 'desktop-release.json')))
+  return parseDesktopRelease(readJson(join(projectDir, DESKTOP_RELEASE_FILE)))
+}
+
+/**
+ * Report whether a profile directory holds an installed profile.
+ *
+ * The release marker is copied with every other seed metadata file, so its
+ * absence means the directory is not a profile this shell installed. Such a
+ * directory does happen: `activate` creates the profile directory before moving
+ * staging into place, and recovery only restores a rollback when the profile is
+ * absent, so a crash in between leaves an empty directory that would otherwise
+ * fail every later read with ENOENT on the missing marker.
+ * @param projectDir - Candidate profile directory.
+ * @returns true when the directory carries the release marker.
+ */
+function profileInstalled(projectDir: string): boolean {
+  return existsSync(join(projectDir, DESKTOP_RELEASE_FILE))
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -364,13 +382,13 @@ export class DesktopProjectManager {
 
   /** Read the active desktop plugin inventory. */
   listPlugins(): readonly DesktopPluginRecord[] {
-    if (!existsSync(this.paths.profile)) return []
+    if (!profileInstalled(this.paths.profile)) return []
     return pluginRecords(this.paths.profile)
   }
 
   /** Read the exact dsh version installed in the active desktop project. */
   dshVersion(): string {
-    if (!existsSync(this.paths.profile)) throw new Error('desktop project: active profile is not installed')
+    if (!profileInstalled(this.paths.profile)) throw new Error('desktop project: active profile is not installed')
     return this.installedPackageVersion(DSH_PACKAGE)
   }
 
@@ -384,9 +402,22 @@ export class DesktopProjectManager {
     return manifest.version
   }
 
+  /**
+   * Read one installed package version without failing a launch.
+   * @param packageName - Core package to read from the active profile.
+   * @returns the installed version, or undefined when the profile cannot supply it.
+   */
+  private installedVersionOrUndefined(packageName: string): string | undefined {
+    try {
+      return this.installedPackageVersion(packageName)
+    } catch {
+      return undefined
+    }
+  }
+
   /** Read the release version applied to the active desktop project. */
   releaseVersion(): string {
-    if (!existsSync(this.paths.profile)) throw new Error('desktop project: active profile is not installed')
+    if (!profileInstalled(this.paths.profile)) throw new Error('desktop project: active profile is not installed')
     return releaseFile(this.paths.profile).version
   }
 
@@ -400,16 +431,20 @@ export class DesktopProjectManager {
       if (target.version !== electronVersion) {
         throw new Error(`desktop project: seed ${target.version} does not match Electron ${electronVersion}`)
       }
-      if (existsSync(this.paths.profile) && this.releaseVersion() === target.version
-        && this.dshVersion() === target.version
-        && this.installedPackageVersion(DESKTOP_HOST_PACKAGE) === target.version) {
+      // Only a complete profile proves this release is already installed. A
+      // profile directory without its marker — or one whose installed packages
+      // cannot be read at all — is rebuilt below instead of failing the launch.
+      const installed = profileInstalled(this.paths.profile)
+      if (installed && this.releaseVersion() === target.version
+        && this.installedVersionOrUndefined(DSH_PACKAGE) === target.version
+        && this.installedVersionOrUndefined(DESKTOP_HOST_PACKAGE) === target.version) {
         verifyDesktopCorePackageSet(this.paths.profile, target.version)
         return false
       }
       this.mergeSeedPnpmState(seedDir)
       const stagingProfile = this.newStagingProfile()
       try {
-        if (existsSync(this.paths.profile)) {
+        if (installed) {
           const plugins = pluginRecords(this.paths.profile)
           copyMetadata(seedDir, stagingProfile)
           await this.runPnpm(stagingProfile, ['install', '--offline', '--frozen-lockfile', '--trust-lockfile'])
@@ -440,7 +475,7 @@ export class DesktopProjectManager {
   async mutate(mutation: DesktopProjectMutation, hooks: DesktopProjectHooks): Promise<void> {
     await this.withLock(async () => {
       this.recover()
-      if (!existsSync(this.paths.profile)) throw new Error('desktop project: active profile is not installed')
+      if (!profileInstalled(this.paths.profile)) throw new Error('desktop project: active profile is not installed')
       verifyDesktopCorePackageSet(this.paths.profile, this.releaseVersion())
       const stagingProfile = this.newStagingProfile()
       try {

@@ -246,6 +246,46 @@ describe('desktop project transactions', () => {
     expect(invocation.env.npm_config_registry).toBeUndefined()
   })
 
+  it('rebuilds a profile directory that survived without its release marker', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(join(root, '.dsh'))
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
+    await expect(manager.applyRelease(seed, '1.0.0', hooks())).resolves.toBe(true)
+
+    // `activate` creates the profile directory before moving staging into place,
+    // so an interrupted activation leaves the directory without the marker that
+    // every completed install carries. The next launch must rebuild it instead of
+    // reading it: `desktop-release.json` is what a release read starts from.
+    rmSync(join(paths.profile, 'desktop-release.json'), { force: true })
+    expect(manager.listPlugins()).toEqual([])
+    expect(() => manager.releaseVersion()).toThrow(/active profile is not installed/u)
+    await expect(manager.applyRelease(seed, '1.0.0', hooks())).resolves.toBe(true)
+    expect(existsSync(join(paths.profile, 'desktop-release.json'))).toBe(true)
+    expect(manager.releaseVersion()).toBe('1.0.0')
+    expect(manager.dshVersion()).toBe('1.0.0')
+  })
+
+  it('rebuilds a profile whose installed packages cannot be read', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(join(root, '.dsh'))
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
+    await expect(manager.applyRelease(seed, '1.0.0', hooks())).resolves.toBe(true)
+
+    rmSync(join(paths.profile, 'node_modules'), { recursive: true, force: true })
+    await expect(manager.applyRelease(seed, '1.0.0', hooks())).resolves.toBe(true)
+    expect(manager.dshVersion()).toBe('1.0.0')
+  })
+
   it('restores the active project when the replacement backend cannot start', async () => {
     const root = temporaryRoot()
     const seed = join(root, 'seed')
