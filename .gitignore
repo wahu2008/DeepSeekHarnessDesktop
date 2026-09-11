@@ -1,0 +1,4 @@
+# Release assets are uploaded to GitHub Releases, never committed: GitHub rejects
+# any file larger than 100 MiB, and the installer is ~172 MiB.
+*.exe
+*.blockmap

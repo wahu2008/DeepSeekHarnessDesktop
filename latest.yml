@@ -1,0 +1,8 @@
+version: 0.1.5-rc.2
+files:
+  - url: deepseek-harness-0.1.5-rc.2-win-x64.exe
+    sha512: gmfYp6hTYwClOO95g7R/gYd/irEocJRBpc6CVc0BRzGJlw45j76sIZ7Cit18dxS2zgjgcCDzK0QK5LfL+d0wXQ==
+    size: 180062425
+path: deepseek-harness-0.1.5-rc.2-win-x64.exe
+sha512: gmfYp6hTYwClOO95g7R/gYd/irEocJRBpc6CVc0BRzGJlw45j76sIZ7Cit18dxS2zgjgcCDzK0QK5LfL+d0wXQ==
+releaseDate: '2026-09-11T11:40:12.172Z'
